@@ -1,0 +1,90 @@
+body { font-family: Arial, Helvetica, sans-serif; background:#0b1220; color:#e6eef8; margin:0; padding:24px; }
+main { max-width:1200px; margin:0 auto; }
+h1 { font-size:24px; margin-bottom: 16px; }
+h2 { font-size:16px; margin:0 0 12px 0; }
+h3 { font-size:14px; margin:8px 0; }
+
+#controls { margin-top: 24px; padding:12px; background:#031021; border-radius:6px; opacity: 0.7; }
+.control-group { margin-bottom: 12px; }
+#controls button { margin-right:8px; padding:10px 16px; font-size:12px; background:#0066aa; color:#fff; border:none; border-radius:4px; cursor:pointer; }
+#controls button:hover { background:#0099ff; }
+#controls input { padding:8px 12px; font-size:12px; background:#0b1220; color:#e6eef8; border:1px solid #0066aa; border-radius:4px; }
+#status { font-size:12px; opacity:0.8; }
+
+/* Dashboard Grid Layout */
+.dashboard { display: flex; flex-direction: column; gap: 16px; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.dashboard-header h1 { margin: 0; font-size:20px; }
+.timestamp { font-size:12px; opacity:0.7; }
+
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.dashboard-panel { background: #071024; border: 2px solid #0099ff; border-radius: 8px; padding: 16px; }
+.dashboard-panel h2 { font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; opacity: 0.9; }
+
+/* Air Quality Panel (Top Left) */
+.air-quality-panel { grid-column: 1; grid-row: 1; }
+.metric-display { border: 3px solid; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 12px; }
+.aqi-icon { font-size: 32px; display: block; margin-bottom: 4px; }
+.aqi-label { font-size: 18px; font-weight: bold; display: block; }
+.pm-details { margin-bottom: 12px; }
+.pm-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.pm-row label { opacity: 0.8; }
+.pm-value { font-weight: bold; }
+.alert-message { padding: 8px; border-radius: 4px; font-size: 13px; font-weight: bold; text-align: center; }
+
+/* Temperature Panel (Top Right) */
+.temperature-panel { grid-column: 2; grid-row: 1; }
+.temp-display { border: 3px solid; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.temp-value { font-size: 28px; font-weight: bold; }
+.temp-color-indicator { width: 24px; height: 24px; border-radius: 4px; }
+.clothing-recommendation h3 { margin-top: 0; }
+.clothing-recommendation ul { list-style: none; padding: 0; margin: 0; }
+.clothing-recommendation li { padding: 4px 0; font-size: 13px; }
+
+/* Humidity & Pressure Panel (Bottom Left) */
+.humidity-panel { grid-column: 1; grid-row: 2; }
+.metric-row { margin-bottom: 12px; }
+.metric-row label { display: block; font-size: 12px; opacity: 0.8; margin-bottom: 4px; }
+.metric-row .metric-display { border: 2px solid; border-radius: 6px; padding: 12px; text-align: center; }
+.metric-value { font-size: 20px; font-weight: bold; }
+
+/* Forecast Panel (Bottom Right) */
+.forecast-panel { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.placeholder { text-align: center; opacity: 0.5; font-size: 13px; }
+
+#debug-output { margin-top: 24px; background: #031021; padding: 12px; border-radius: 6px; }
+#debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 11px; margin: 0; }
+
+/* TV remote focus styles */
+.focusable:focus,
+.focusable:focus-visible {
+	outline: 3px solid #00ccff;
+	outline-offset: 2px;
+	box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.25);
+}
+
+.focusable.tv-focused {
+	outline: 3px solid #00ccff;
+	outline-offset: 2px;
+	box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.25);
+}
+
+code { background: #031021; padding: 2px 6px; border-radius: 4px; }
+footer { margin-top: 24px; opacity: 0.8; font-size: 12px; }
+
+/* OAuth Authorization Prompt */
+.auth-prompt { background: #071024; border: 2px solid #0099ff; border-radius: 8px; padding: 24px; text-align: center; }
+.auth-prompt h1 { margin: 0 0 16px 0; font-size: 24px; }
+.auth-prompt p { margin: 12px 0; font-size: 14px; }
+.qr-code-container { margin: 20px auto; padding: 20px; background: white; border-radius: 8px; max-width: 600px; }
+.qr-placeholder { min-height: 200px; display: flex; align-items: center; justify-content: center; }
+.auth-instructions { text-align: left; max-width: 500px; margin: 20px auto; padding: 16px; background: #031021; border-radius: 6px; }
+.auth-instructions h3 { margin-top: 0; }
+.auth-instructions ol { padding-left: 20px; }
+.auth-instructions li { margin: 8px 0; font-size: 13px; }
+.manual-code-entry { margin-top: 20px; }
+.manual-code-entry input { background: #0b1220; color: #e6eef8; border: 2px solid #0066aa; border-radius: 4px; }
+.manual-code-entry button { background: #0066aa; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+.manual-code-entry button:hover { background: #0099ff; }
+.manual-code-entry button:disabled { background: #666; cursor: not-allowed; }

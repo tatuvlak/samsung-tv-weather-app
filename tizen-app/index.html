@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Świnka Pogodynka</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+      <img src="icon.png" alt="Świnka Pogodynka" style="width: 120px; height: 120px; border-radius: 12px;">
+      <h1>Świnka Pogodynka</h1>
+    </div>
+
+    <div id="status" style="margin-bottom: 16px; font-size: 14px; opacity: 0.8;">Initializing...</div>
+
+    <section id="dashboard-container">
+      <!-- Dashboard will render here -->
+    </section>
+
+    <section id="controls">
+      <!-- Controls moved to bottom for eventual removal -->
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="qrcode.min.js"></script>
+  <script src="oauth.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

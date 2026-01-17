@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://example.com/tvweather"
+        version="1.0.0">
+  <tizen:application id="tvweather1.tvweather" package="tvweather1" required_version="2.3"/>
+  <tizen:profile name="tv"/>
+  <name>Świnka Pogodynka</name>
+  <description>Weather station data display app</description>
+  <author>Samsung TV Weather</author>
+  <license>MIT</license>
+  <icon src="icon.png"/>
+  <content src="index.html"/>
+  <feature name="http://tizen.org/feature/screen.size.all"/>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/network.get"/>
+  <access origin="*" subdomains="true"/>
+  <tizen:content-security-policy>
+    default-src 'self';
+    connect-src 'self' https://api.smartthings.com https://*.smartthings.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+  </tizen:content-security-policy>
+  <preference name="orient" value="landscape"/>
+</widget>

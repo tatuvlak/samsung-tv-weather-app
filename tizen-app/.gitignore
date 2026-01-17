@@ -1,0 +1,14 @@
+# Tizen Build Artifacts
+build/
+*.wgt
+.tizen/
+.buildResult/
+.buildTemp/
+
+# Signatures and certificates (sensitive)
+*-signature.xml
+signature*.xml
+.manifest.tmp
+
+# Build artifacts
+build-clean/
