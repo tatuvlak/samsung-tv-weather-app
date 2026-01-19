@@ -77,7 +77,7 @@ async function refreshDashboard(){
 
   try{
     const accessToken = await window.OAuth.getValidAccessToken();
-    status.textContent = 'Loading dashboard...';
+    status.textContent = 'Refreshing...';
     await fetchAndRenderDashboard(accessToken, selectedDeviceId);
     status.textContent = 'Dashboard ready';
   } catch(err) {
@@ -208,6 +208,16 @@ document.addEventListener('focusin', (e) => {
 (async () => {
   status.textContent = 'Initializing...';
   
+  // Prevent TV from going to sleep
+  try {
+    if (window.tizen && tizen.power) {
+      tizen.power.request('SCREEN', 'SCREEN_NORMAL');
+      console.log('Screen wake lock enabled');
+    }
+  } catch (e) {
+    console.warn('Could not enable screen wake lock:', e);
+  }
+  
   // Check if user is authorized with OAuth
   if (!window.OAuth.isAuthorized()) {
     status.textContent = 'Not authorized';
@@ -228,6 +238,14 @@ document.addEventListener('focusin', (e) => {
       status.textContent = 'Error: ' + err.message;
     }
   }
+  
+  // Auto-refresh dashboard every 60 seconds
+  setInterval(() => {
+    if (selectedDeviceId) {
+      console.log('Auto-refreshing dashboard...');
+      refreshDashboard();
+    }
+  }, 60000); // 60000ms = 1 minute
   
   // Ensure first control is focused for TV remote navigation
   setTimeout(() => focusByIndex(0), 100);

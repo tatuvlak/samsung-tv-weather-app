@@ -12,3 +12,10 @@ signature*.xml
 
 # Build artifacts
 build-clean/
+
+# Sensitive configuration (DO NOT COMMIT)
+config.js
+
+# Local development files
+.DS_Store
+*.log

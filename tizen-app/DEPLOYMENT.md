@@ -50,23 +50,27 @@ tizen build-web -out ./build -e "*.md,oauth-callback.html,build-clean/*,.gitigno
 cd build
 tizen package -t wgt -s bartek -- .
 
-# Step 3: Rename package (required for compatibility)
-Move-Item -Force "TV Weather.wgt" "tv-weather.wgt"
+# Step 3: Rename package (use actual package name from config.xml)
+Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"
 cd ..
 
 # Step 4: Connect to TV via SDB (if not already connected)
-sdb connect 192.168.18.109:26101
+# Replace <YOUR_TV_IP> with your TV's actual IP address
+sdb connect <YOUR_TV_IP>:26101
 
-# Step 5: Install on TV
-tizen install -n build/tv-weather.wgt -s 192.168.18.109:26101
+# Step 5: Uninstall previous version (if certificate changed)
+tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 
-# Step 6: Launch app
-tizen run -p tvweather1.tvweather -s 192.168.18.109:26101
+# Step 6: Install on TV
+tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101
+
+# Step 7: Launch app
+tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 **One-Line Deploy (after initial setup):**
 ```powershell
-cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,oauth-callback.html,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "TV Weather.wgt" "tv-weather.wgt"; cd ..; tizen install -n build/tv-weather.wgt -s 192.168.18.109:26101; tizen run -p tvweather1.tvweather -s 192.168.18.109:26101
+cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,oauth-callback.html,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101; tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 **Important Notes:**
@@ -121,12 +125,12 @@ Troubleshooting
 
 **Cannot connect to TV:**
 ```powershell
-# Check if TV is reachable
-ping 192.168.18.109
+# Check if TV is reachable (use your TV's actual IP)
+ping <YOUR_TV_IP>
 
 # Try reconnecting
 sdb disconnect
-sdb connect 192.168.18.109:26101
+sdb connect <YOUR_TV_IP>:26101
 sdb devices
 ```
 
@@ -134,6 +138,14 @@ sdb devices
 - Verify certificate profile exists: `tizen security-profiles list`
 - If certificate missing, create one in Tizen Studio or use CLI
 - Replace `bartek` with your actual certificate profile name
+
+**Author certificate not match error:**
+- Cause: App was previously installed with a different certificate
+- Solution: Uninstall the old version first:
+  ```powershell
+  tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
+  ```
+- Then reinstall with the new certificate
 
 Next Steps
 
