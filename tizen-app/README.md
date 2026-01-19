@@ -50,7 +50,7 @@ The app supports the complete Matter AirQualityEnum specification:
 
 ### 2. Samsung Certificate Setup
 
-Ensure your certificate profile is configured in Tizen Studio. The default profile name used is `bartek`. Update the build commands below if you use a different profile name.
+Ensure your certificate profile is configured in Tizen Studio. Replace `<YOUR_CERT_PROFILE>` in the build commands below with your actual certificate profile name.
 
 ## Build and Deployment
 
@@ -66,8 +66,8 @@ Remove-Item "*.wgt" -Force -ErrorAction SilentlyContinue
 Remove-Item ".manifest.tmp" -Force -ErrorAction SilentlyContinue
 Remove-Item "*signature*.xml" -Force -ErrorAction SilentlyContinue
 
-# Create signed package (replace 'bartek' with your certificate profile name)
-tizen package -t wgt -s bartek -- .
+# Create signed package (replace '<YOUR_CERT_PROFILE>' with your certificate profile name)
+tizen package -t wgt -s <YOUR_CERT_PROFILE> -- .
 
 # Copy package to parent directory for easy access
 Copy-Item "TV Weather.wgt" "..\tv-weather.wgt" -Force
@@ -78,18 +78,18 @@ cd ..
 
 1. **Connect to TV via SDB:**
    ```powershell
-   sdb connect 192.168.18.109:26101
+   sdb connect <YOUR_TV_IP>:26101
    ```
-   Replace `192.168.18.109` with your TV's IP address.
+   Replace `<YOUR_TV_IP>` with your TV's actual IP address.
 
 2. **Install the package:**
    ```powershell
-   tizen install -n "tv-weather.wgt" -s 192.168.18.109:26101
+   tizen install -n "tv-weather.wgt" -s <YOUR_TV_IP>:26101
    ```
 
 3. **Launch the app:**
    ```powershell
-   tizen run -p tvweather1.tvweather -s 192.168.18.109:26101
+   tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
    ```
 
 ### Complete Deployment Script
@@ -101,11 +101,11 @@ cd build-clean
 Remove-Item "*.wgt" -Force -ErrorAction SilentlyContinue
 Remove-Item ".manifest.tmp" -Force -ErrorAction SilentlyContinue
 Remove-Item "*signature*.xml" -Force -ErrorAction SilentlyContinue
-tizen package -t wgt -s bartek -- .
+tizen package -t wgt -s <YOUR_CERT_PROFILE> -- .
 Copy-Item "TV Weather.wgt" "..\tv-weather.wgt" -Force
 cd ..
-tizen install -n "tv-weather.wgt" -s 192.168.18.109:26101
-tizen run -p tvweather1.tvweather -s 192.168.18.109:26101
+tizen install -n "tv-weather.wgt" -s <YOUR_TV_IP>:26101
+tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 ## Project Structure
@@ -165,7 +165,7 @@ Open http://localhost:8000 in a browser to test the UI and API integration.
 ### Package Installation Fails
 - Verify certificate profile name matches the `-s` parameter
 - Check certificate validity in Tizen Studio
-- Ensure old app version is uninstalled: `tizen uninstall -p tvweather1.tvweather -s 192.168.18.109:26101`
+- Ensure old app version is uninstalled: `tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101`
 
 ### App Shows No Data
 - Verify SmartThings PAT in `config.js`
