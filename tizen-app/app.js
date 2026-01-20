@@ -22,6 +22,32 @@ async function initiateOAuthFlow() {
   } catch (err) {
     status.textContent = 'Authorization failed: ' + err.message;
     console.error('OAuth initialization error:', err);
+    
+    // Show retry button on initialization failure
+    showRetryAuthorizationButton();
+  }
+}
+
+function showRetryAuthorizationButton() {
+  const container = document.getElementById('dashboard-container');
+  if (!container) return;
+  
+  const retryHtml = `
+    <div style="margin-top: 20px; text-align: center;">
+      <button id="retry-auth-init-btn" class="focusable" 
+              style="padding: 15px 30px; font-size: 18px; background: #0066aa; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+        🔄 Retry Authorization
+      </button>
+    </div>
+  `;
+  
+  container.insertAdjacentHTML('beforeend', retryHtml);
+  
+  const retryBtn = document.getElementById('retry-auth-init-btn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', async () => {
+      await window.OAuth.clearAndRetryAuthorization();
+    });
   }
 }
 

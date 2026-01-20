@@ -388,7 +388,39 @@ function displayAuthorizationPrompt(authUrl) {
         // Reload app to show dashboard
         location.reload();
       } catch (err) {
-        alert('Failed to exchange code: ' + err.message);
+        console.error('Authorization failed:', err);
+        
+        // Show error message with retry option
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #dc3545; color: white; border-radius: 8px;';
+        errorDiv.innerHTML = `
+          <p style="margin: 0 0 10px 0; font-weight: bold;">❌ Authorization Failed</p>
+          <p style="margin: 0 0 10px 0; font-size: 14px;">${err.message}</p>
+          <button id="retry-auth-btn" class="focusable" 
+                  style="padding: 10px 20px; font-size: 14px; background: white; color: #dc3545; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            🔄 Clear & Retry Authorization
+          </button>
+        `;
+        
+        // Remove old error message if exists
+        const oldError = document.querySelector('.auth-error-message');
+        if (oldError) oldError.remove();
+        
+        errorDiv.className = 'auth-error-message';
+        submitButton.parentElement.appendChild(errorDiv);
+        
+        // Add retry button handler
+        const retryBtn = document.getElementById('retry-auth-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', async () => {
+            try {
+              await window.OAuth.clearAndRetryAuthorization();
+            } catch (retryErr) {
+              console.error('Retry failed:', retryErr);
+            }
+          });
+        }
+        
         submitButton.textContent = 'Submit Code';
         submitButton.disabled = false;
       }
@@ -421,6 +453,13 @@ function applyVirtualFocus(el) {
   }
 }
 
+// Clear tokens and restart authorization flow
+async function clearAndRetryAuthorization() {
+  clearTokens();
+  const authUrl = await startAuthorizationFlow();
+  displayAuthorizationPrompt(authUrl);
+}
+
 // Export functions for use in app
 window.OAuth = {
   startAuthorizationFlow,
@@ -430,5 +469,6 @@ window.OAuth = {
   isAuthorized,
   clearTokens,
   displayAuthorizationPrompt,
-  getTokens
+  getTokens,
+  clearAndRetryAuthorization
 };
