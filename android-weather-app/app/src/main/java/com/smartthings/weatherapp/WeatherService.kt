@@ -11,11 +11,11 @@ import retrofit2.http.Path
 import java.util.concurrent.TimeUnit
 
 interface SmartThingsApi {
-    @GET("devices/{deviceId}/status")
+    @GET("devices/{deviceId}/components/main/status")
     suspend fun getDeviceStatus(
         @Path("deviceId") deviceId: String,
         @Header("Authorization") token: String
-    ): DeviceStatusResponse
+    ): Map<String, ComponentStatus>
     
     @GET("devices")
     suspend fun getDevices(
@@ -23,8 +23,20 @@ interface SmartThingsApi {
     ): DevicesResponse
 }
 
-data class DeviceStatusResponse(
-    val status: Map<String, Any>
+data class ComponentStatus(
+    val temperature: ValueWrapper? = null,
+    val fineDustLevel: ValueWrapper? = null,
+    val veryFineDustLevel: ValueWrapper? = null,
+    val dustLevel: ValueWrapper? = null,
+    val humidity: ValueWrapper? = null,
+    val atmosphericPressure: ValueWrapper? = null,
+    val airQualityHealthConcern: ValueWrapper? = null
+)
+
+data class ValueWrapper(
+    val value: Any?,
+    val unit: String? = null,
+    val timestamp: String? = null
 )
 
 data class DevicesResponse(
@@ -35,7 +47,8 @@ data class Device(
     val deviceId: String,
     val name: String,
     val label: String?,
-    val type: String
+    val type: String?,
+    val components: List<Map<String, Any>>? = null
 )
 
 class WeatherService private constructor(private val oauthManager: OAuthManager) {
@@ -66,12 +79,16 @@ class WeatherService private constructor(private val oauthManager: OAuthManager)
     /**
      * Get device status with automatic OAuth token handling
      */
-    suspend fun getDeviceStatus(deviceId: String): DeviceStatusResponse? {
+    suspend fun getDeviceStatus(deviceId: String): Map<String, ComponentStatus>? {
         val token = oauthManager.getValidAccessToken() ?: return null
         return try {
             api.getDeviceStatus(deviceId, "Bearer $token")
         } catch (e: Exception) {
             println("Failed to get device status: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
             null
         }
     }

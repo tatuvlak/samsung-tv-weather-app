@@ -161,14 +161,17 @@ class MainActivity : AppCompatActivity() {
                     return@launch
                 }
                 
-                // Find weather capability device
+                // Find weather capability device (look for air quality sensor)
                 val weatherDevice = devicesResponse.items.firstOrNull { device ->
-                    device.name.contains("weather", ignoreCase = true) ||
-                    device.label?.contains("weather", ignoreCase = true) == true
+                    val componentsStr = device.components?.toString() ?: ""
+                    componentsStr.contains("temperatureMeasurement") ||
+                    componentsStr.contains("relativeHumidityMeasurement") ||
+                    componentsStr.contains("pm25Measurement") ||
+                    componentsStr.contains("airQuality")
                 }
                 
                 if (weatherDevice != null) {
-                    // Get device status
+                    // Get device status from main component
                     val status = weatherService.getDeviceStatus(weatherDevice.deviceId)
                     
                     if (status != null) {
@@ -177,17 +180,7 @@ class MainActivity : AppCompatActivity() {
                         showError("Failed to load weather data")
                     }
                 } else {
-                    // Simulated weather data for demonstration
-                    val weatherData = WeatherData(
-                        temperature = 22.5,
-                        location = "Living Room",
-                        condition = "Partly Cloudy",
-                        humidity = 65,
-                        windSpeed = 12.5,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    
-                    displayWeatherData(weatherData)
+                    showError("No weather device found. Please check your SmartThings setup.")
                 }
                 
                 showLoading(false)
@@ -195,42 +188,42 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 showLoading(false)
                 showError("Failed to load weather data: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
     
-    private fun displayWeatherData(status: DeviceStatusResponse, location: String) {
-        // Extract weather data from SmartThings device status
-        // This is an example - adjust based on your device's capabilities
-        val temperature = extractValue(status.status, "temperature") ?: "--"
-        val humidity = extractValue(status.status, "humidity") ?: "--"
-        val condition = extractValue(status.status, "weatherCondition") ?: "Unknown"
+    private fun displayWeatherData(status: Map<String, ComponentStatus>, location: String) {
+        // Extract weather data from SmartThings component status
+        // Component status contains: temperatureMeasurement, relativeHumidityMeasurement, etc.
         
-        tvTemperature.text = "$temperature°C"
+        val tempMeasurement = status["temperatureMeasurement"]
+        val humidityMeasurement = status["relativeHumidityMeasurement"]
+        val pm25Measurement = status["fineDustSensor"]
+        val pm10Measurement = status["dustSensor"]
+        val pm1Measurement = status["veryFineDustSensor"]
+        val pressureMeasurement = status["atmosphericPressureMeasurement"]
+        val aqiMeasurement = status["airQualityHealthConcern"]
+        
+        val temperature = tempMeasurement?.temperature?.value?.toString() ?: "--"
+        val humidity = humidityMeasurement?.humidity?.value?.toString() ?: "--"
+        val pm25 = pm25Measurement?.fineDustLevel?.value?.toString() ?: "--"
+        val pm10 = pm10Measurement?.dustLevel?.value?.toString() ?: "--"
+        val pm1 = pm1Measurement?.veryFineDustLevel?.value?.toString() ?: "--"
+        val pressure = pressureMeasurement?.atmosphericPressure?.value?.toString() ?: "--"
+        val aqi = aqiMeasurement?.airQualityHealthConcern?.value?.toString() ?: "N/A"
+        
+        tvTemperature.text = if (temperature != "--") "$temperature°C" else temperature
         tvLocation.text = location
-        tvCondition.text = condition.toString()
+        tvCondition.text = "AQI: $aqi"
         tvHumidity.text = "Humidity: $humidity%"
-        tvWindSpeed.text = "Wind: -- km/h" // If available in your device
+        tvWindSpeed.text = "PM2.5: $pm25 µg/m³" // Reuse wind speed field for PM2.5
         
         val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         tvLastUpdate.text = "Last updated: ${dateFormat.format(Date())}"
-    }
-    
-    
-    private fun extractValue(status: Map<String, Any>, key: String): Any? {
-        val capability = status[key] as? Map<*, *>
-        return capability?.get("value")
-    }
-    
-    private fun displayWeatherData(data: WeatherData) {
-        tvTemperature.text = "${data.temperature}°C"
-        tvLocation.text = data.location
-        tvCondition.text = data.condition
-        tvHumidity.text = "Humidity: ${data.humidity}%"
-        tvWindSpeed.text = "Wind: ${data.windSpeed} km/h"
         
-        val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-        tvLastUpdate.text = "Last updated: ${dateFormat.format(Date(data.timestamp))}"
+        // Log for debugging
+        println("Weather data: temp=$temperature, humidity=$humidity, pm25=$pm25, aqi=$aqi")
     }
     
     private fun showLoading(show: Boolean) {
@@ -243,12 +236,3 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }
-
-data class WeatherData(
-    val temperature: Double,
-    val location: String,
-    val condition: String,
-    val humidity: Int,
-    val windSpeed: Double,
-    val timestamp: Long
-)
