@@ -2,12 +2,12 @@
 <resources>
     <string name="app_name">SmartThings Weather</string>
     <string name="refresh">Refresh</string>
-    <string name="connect">Connect TV</string>
-    <string name="info_text">This app displays weather information from your SmartThings Samsung TV</string>
+    <string name="connect">Authorize SmartThings</string>
+    <string name="info_text">This app displays weather information from your SmartThings weather devices</string>
     <string name="loading">Loading weather data...</string>
     <string name="error">Error loading weather data</string>
     <string name="connected">Connected to SmartThings</string>
     <string name="disconnected">Disconnected from SmartThings</string>
-    <string name="refresh_weather_description">Refresh weather data from SmartThings</string>
-    <string name="connect_tv_description">Connect to Samsung TV for weather information</string>
+    <string name="refresh_weather_description">Refresh weather data from SmartThings devices</string>
+    <string name="connect_tv_description">Authorize access to SmartThings weather devices</string>
 </resources>
