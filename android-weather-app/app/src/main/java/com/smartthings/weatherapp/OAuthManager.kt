@@ -120,22 +120,21 @@ class OAuthManager(private val context: Context) {
         try {
             val codeVerifier = prefs.getString(KEY_CODE_VERIFIER, null)
             
+            println("DEBUG: Starting token exchange")
+            println("DEBUG: Using PKCE: ${CLIENT_SECRET.isEmpty()}")
+            println("DEBUG: Code verifier exists: ${codeVerifier != null}")
+            
             val bodyBuilder = FormBody.Builder()
                 .add("grant_type", "authorization_code")
                 .add("code", authorizationCode)
                 .add("redirect_uri", REDIRECT_URI)
             
-            // Add code_verifier if using PKCE
-            if (CLIENT_SECRET.isEmpty() && codeVerifier != null) {
-                bodyBuilder.add("code_verifier", codeVerifier)
-            }
-            
             val requestBuilder = Request.Builder()
                 .url(TOKEN_ENDPOINT)
-                .post(bodyBuilder.build())
             
             // Use Basic Auth if client_secret is available
             if (CLIENT_SECRET.isNotEmpty()) {
+                println("DEBUG: Using client_secret with Basic Auth")
                 val credentials = "$CLIENT_ID:$CLIENT_SECRET"
                 val encoded = Base64.encodeToString(
                     credentials.toByteArray(),
@@ -143,19 +142,35 @@ class OAuthManager(private val context: Context) {
                 )
                 requestBuilder.addHeader("Authorization", "Basic $encoded")
             } else {
+                println("DEBUG: Using PKCE (no client_secret)")
                 // Include client_id in body if no secret
                 bodyBuilder.add("client_id", CLIENT_ID)
+                
+                // Add code_verifier if using PKCE
+                if (codeVerifier != null) {
+                    bodyBuilder.add("code_verifier", codeVerifier)
+                } else {
+                    println("ERROR: No code verifier found for PKCE flow!")
+                }
             }
             
-            val request = requestBuilder.build()
+            val request = requestBuilder
+                .post(bodyBuilder.build())
+                .build()
+            
+            println("DEBUG: Making token request to: $TOKEN_ENDPOINT")
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
-                println("Token exchange failed: ${response.code} ${response.body?.string()}")
+                val errorBody = response.body?.string()
+                println("ERROR: Token exchange failed: ${response.code}")
+                println("ERROR: Response body: $errorBody")
                 return@withContext false
             }
             
             val responseBody = response.body?.string() ?: return@withContext false
+            println("DEBUG: Token exchange successful")
+            
             val json = JSONObject(responseBody)
             
             saveTokens(
@@ -169,7 +184,7 @@ class OAuthManager(private val context: Context) {
             
             true
         } catch (e: Exception) {
-            println("Token exchange error: ${e.message}")
+            println("ERROR: Token exchange exception: ${e.message}")
             e.printStackTrace()
             false
         }

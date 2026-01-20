@@ -118,6 +118,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 showLoading(true)
                 
+                println("DEBUG: Exchanging code: ${code.take(10)}...")
                 val success = oauthManager.exchangeCodeForTokens(code)
                 
                 showLoading(false)
@@ -132,12 +133,15 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Toast.makeText(
                         this@MainActivity,
-                        "Authorization failed. Please try again.",
+                        "Authorization failed. Check logcat for details.",
                         Toast.LENGTH_LONG
                     ).show()
+                    showAuthorizationRequired()
                 }
             } catch (e: Exception) {
                 showLoading(false)
+                println("ERROR: Authorization exception: ${e.message}")
+                e.printStackTrace()
                 showError("Authorization error: ${e.message}")
             }
         }
