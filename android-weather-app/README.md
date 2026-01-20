@@ -13,7 +13,7 @@ An Android application that displays weather information from Samsung SmartThing
 ## Requirements
 
 - Android 7.0 (API level 24) or higher
-- SmartThings Personal Access Token (PAT)
+- SmartThings OAuth application (Client ID from [SmartThings Developer Portal](https://my.smartthings.com/))
 - Internet connection
 
 ## Installation
@@ -27,9 +27,12 @@ An Android application that displays weather information from Samsung SmartThing
 
 To connect to SmartThings:
 
-1. Get your Personal Access Token from [SmartThings Developer Portal](https://my.smartthings.com/)
-2. In the app, click "Connect TV"
-3. Enter your PAT token when prompted
+1. Configure your OAuth Client ID in `OAuthManager.kt`
+2. In the app, click "Connect TV" to start OAuth flow
+3. Authorize the app in your browser
+4. Copy and paste the authorization code back into the app
+
+The app uses the same OAuth callback as the TV app: `https://tatuvlak.github.io/tv-weather-oauth/callback.html`
 
 ## Building
 

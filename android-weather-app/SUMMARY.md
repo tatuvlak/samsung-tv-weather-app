@@ -103,7 +103,7 @@ The app integrates with the existing SmartThings MCP & Agent project:
 1. **Uses SmartThings API** for device data
 2. **Supports Samsung TV** weather ambient apps
 3. **Real-time updates** from SmartThings cloud
-4. **Secure authentication** using PAT tokens
+4. **Secure authentication** using OAuth 2.0 with PKCE (matching TV app)
 
 ## File Statistics
 

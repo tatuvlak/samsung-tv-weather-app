@@ -16,7 +16,9 @@ The SmartThings Weather Android app is a companion application that:
 1. **Android Studio** - Download from [developer.android.com](https://developer.android.com/studio)
 2. **Android SDK** - Installed via Android Studio
 3. **Java 17** - For building the project
-4. **SmartThings PAT Token** - From [SmartThings Developer Portal](https://my.smartthings.com/)
+4. **SmartThings OAuth App** - Register at [SmartThings Developer Portal](https://my.smartthings.com/)
+   - Add redirect URI: `https://tatuvlak.github.io/tv-weather-oauth/callback.html`
+   - Note your Client ID (and optionally Client Secret for non-PKCE flow)
 
 ### Build Instructions
 
@@ -133,10 +135,15 @@ android-weather-app/
 
 To connect to SmartThings:
 
-1. Get your Personal Access Token (PAT) from [SmartThings Portal](https://my.smartthings.com/)
-2. In the app, click "Connect TV"
-3. Enter your PAT token
-4. The app will fetch device data from SmartThings API
+1. Configure OAuth credentials in `OAuthManager.kt`:
+   ```kotlin
+   const val CLIENT_ID = "your-client-id"
+   const val CLIENT_SECRET = "" // Optional: leave empty for PKCE
+   ```
+2. In the app, click "Connect TV" to start OAuth authorization
+3. Authorize in browser and copy the authorization code
+4. Paste the code in the app dialog
+5. The app will exchange the code for access tokens and fetch device data
 
 ### API Endpoints
 

@@ -1,5 +1,6 @@
 package com.smartthings.weatherapp
 
+import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -37,7 +38,7 @@ data class Device(
     val type: String
 )
 
-class WeatherService private constructor() {
+class WeatherService private constructor(private val oauthManager: OAuthManager) {
     
     private val api: SmartThingsApi
     
@@ -62,21 +63,39 @@ class WeatherService private constructor() {
         api = retrofit.create(SmartThingsApi::class.java)
     }
     
-    suspend fun getDeviceStatus(deviceId: String, token: String): DeviceStatusResponse {
-        return api.getDeviceStatus(deviceId, "Bearer $token")
+    /**
+     * Get device status with automatic OAuth token handling
+     */
+    suspend fun getDeviceStatus(deviceId: String): DeviceStatusResponse? {
+        val token = oauthManager.getValidAccessToken() ?: return null
+        return try {
+            api.getDeviceStatus(deviceId, "Bearer $token")
+        } catch (e: Exception) {
+            println("Failed to get device status: ${e.message}")
+            null
+        }
     }
     
-    suspend fun getDevices(token: String): DevicesResponse {
-        return api.getDevices("Bearer $token")
+    /**
+     * Get all devices with automatic OAuth token handling
+     */
+    suspend fun getDevices(): DevicesResponse? {
+        val token = oauthManager.getValidAccessToken() ?: return null
+        return try {
+            api.getDevices("Bearer $token")
+        } catch (e: Exception) {
+            println("Failed to get devices: ${e.message}")
+            null
+        }
     }
     
     companion object {
         @Volatile
         private var instance: WeatherService? = null
         
-        fun create(): WeatherService {
+        fun create(context: Context): WeatherService {
             return instance ?: synchronized(this) {
-                instance ?: WeatherService().also { instance = it }
+                instance ?: WeatherService(OAuthManager(context)).also { instance = it }
             }
         }
     }
