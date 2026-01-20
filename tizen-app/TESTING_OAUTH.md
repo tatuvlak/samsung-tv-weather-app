@@ -114,8 +114,8 @@ Once tested locally:
 ```powershell
 cd tizen-app
 tizen package -t wgt -s bartek -- .
-tizen install -n "TV Weather.wgt" -s 192.168.18.109:26101
-tizen run -p tvweather1.tvweather -s 192.168.18.109:26101
+tizen install -n "TV Weather.wgt" -s <YOUR_TV_IP>:26101
+tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 **Note**: On TV, you'll need to:
