@@ -15,6 +15,17 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Read OAuth configuration from local.properties (gitignored)
+        Properties properties = new Properties()
+        if (rootProject.file('local.properties').exists()) {
+            properties.load(rootProject.file('local.properties').newDataInputStream())
+        }
+        
+        buildConfigField "String", "OAUTH_CLIENT_ID", "\"${properties.getProperty('oauth.clientId', '')}\""
+        buildConfigField "String", "OAUTH_CLIENT_SECRET", "\"${properties.getProperty('oauth.clientSecret', '')}\""
+        buildConfigField "String", "OAUTH_REDIRECT_URI", "\"${properties.getProperty('oauth.redirectUri', 'https://tatuvlak.github.io/tv-weather-oauth/callback.html')}\""
+        buildConfigField "String", "OAUTH_SCOPE", "\"${properties.getProperty('oauth.scope', 'r:devices:* r:locations:*')}\""
     }
 
     buildTypes {

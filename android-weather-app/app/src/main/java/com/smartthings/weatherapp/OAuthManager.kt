@@ -32,11 +32,12 @@ class OAuthManager(private val context: Context) {
         .build()
     
     companion object {
-        // OAuth Configuration (match your SmartThings OAuth app)
-        const val CLIENT_ID = "2fc15490-2e53-40d6-a4f3-b4ef5782acc3"
-        const val CLIENT_SECRET = "35dfab34-988f-4794-b369-d912adc90b5f" // Required for this client
-        const val REDIRECT_URI = "https://tatuvlak.github.io/tv-weather-oauth/callback.html"
-        const val SCOPE = "r:devices:* r:locations:*"
+        // OAuth Configuration - loaded from local.properties (gitignored)
+        // See local.properties.example for required properties
+        val CLIENT_ID = BuildConfig.OAUTH_CLIENT_ID
+        val CLIENT_SECRET = BuildConfig.OAUTH_CLIENT_SECRET
+        val REDIRECT_URI = BuildConfig.OAUTH_REDIRECT_URI
+        val SCOPE = BuildConfig.OAUTH_SCOPE
         
         const val AUTHORIZATION_ENDPOINT = "https://api.smartthings.com/oauth/authorize"
         const val TOKEN_ENDPOINT = "https://api.smartthings.com/oauth/token"
