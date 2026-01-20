@@ -89,9 +89,6 @@ class WeatherService private constructor(private val oauthManager: OAuthManager)
             null
         }
     }
-            null
-        }
-    }
     
     /**
      * Get all devices with automatic OAuth token handling
