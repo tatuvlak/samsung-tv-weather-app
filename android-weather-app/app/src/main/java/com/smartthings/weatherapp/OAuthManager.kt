@@ -34,7 +34,7 @@ class OAuthManager(private val context: Context) {
     companion object {
         // OAuth Configuration (match your SmartThings OAuth app)
         const val CLIENT_ID = "2fc15490-2e53-40d6-a4f3-b4ef5782acc3"
-        const val CLIENT_SECRET = "" // Optional: leave empty to use PKCE
+        const val CLIENT_SECRET = "35dfab34-988f-4794-b369-d912adc90b5f" // Required for this client
         const val REDIRECT_URI = "https://tatuvlak.github.io/tv-weather-oauth/callback.html"
         const val SCOPE = "r:devices:* r:locations:*"
         
@@ -149,22 +149,42 @@ class OAuthManager(private val context: Context) {
                 // Add code_verifier if using PKCE
                 if (codeVerifier != null) {
                     bodyBuilder.add("code_verifier", codeVerifier)
+                    println("DEBUG: Code verifier length: ${codeVerifier.length}")
                 } else {
                     println("ERROR: No code verifier found for PKCE flow!")
                 }
             }
             
+            val requestBody = bodyBuilder.build()
             val request = requestBuilder
-                .post(bodyBuilder.build())
+                .post(requestBody)
                 .build()
             
+            // Log request details
             println("DEBUG: Making token request to: $TOKEN_ENDPOINT")
+            println("DEBUG: Request body fields: grant_type, code, redirect_uri, client_id${if (codeVerifier != null) ", code_verifier" else ""}")
+            println("DEBUG: Authorization code length: ${authorizationCode.length}")
+            println("DEBUG: Redirect URI: $REDIRECT_URI")
+            
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string()
                 println("ERROR: Token exchange failed: ${response.code}")
+                println("ERROR: Response headers: ${response.headers}")
                 println("ERROR: Response body: $errorBody")
+                
+                // Check for specific error messages
+                if (errorBody != null && errorBody.isNotEmpty()) {
+                    try {
+                        val errorJson = JSONObject(errorBody)
+                        println("ERROR: OAuth error: ${errorJson.optString("error")}")
+                        println("ERROR: Error description: ${errorJson.optString("error_description")}")
+                    } catch (e: Exception) {
+                        println("ERROR: Could not parse error response as JSON")
+                    }
+                }
+                
                 return@withContext false
             }
             
