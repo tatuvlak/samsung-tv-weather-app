@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardAirQuality: MaterialCardView
     private lateinit var cardTemperature: MaterialCardView
     private lateinit var cardHumidityPressure: MaterialCardView
+    private lateinit var swipeRefresh: SwipeRefreshLayout
     
     private lateinit var weatherService: WeatherService
     private lateinit var oauthManager: OAuthManager
@@ -105,6 +107,7 @@ class MainActivity : AppCompatActivity() {
         cardAirQuality = findViewById(R.id.card_air_quality)
         cardTemperature = findViewById(R.id.card_temperature)
         cardHumidityPressure = findViewById(R.id.card_humidity_pressure)
+        swipeRefresh = findViewById(R.id.swipe_refresh)
     }
     
     private fun initializeServices() {
@@ -116,6 +119,24 @@ class MainActivity : AppCompatActivity() {
         btnConnect.setOnClickListener {
             startOAuthFlow()
         }
+        
+        // Setup pull-to-refresh
+        swipeRefresh.setOnRefreshListener {
+            if (oauthManager.isAuthorized()) {
+                loadWeatherData()
+            } else {
+                swipeRefresh.isRefreshing = false
+                Toast.makeText(this, "Please authorize first", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Customize refresh indicator colors
+        swipeRefresh.setColorSchemeColors(
+            getColor(android.R.color.holo_green_light),
+            getColor(android.R.color.holo_blue_light),
+            getColor(android.R.color.holo_orange_light)
+        )
+        swipeRefresh.setProgressBackgroundColorSchemeColor(getColor(android.R.color.black))
     }
     
     private fun showAuthorizationRequired() {
@@ -206,6 +227,7 @@ class MainActivity : AppCompatActivity() {
                 
                 if (devicesResponse == null) {
                     showLoading(false)
+                    swipeRefresh.isRefreshing = false
                     showAuthorizationRequired()
                     return@launch
                 }
@@ -233,9 +255,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 
                 showLoading(false)
+                swipeRefresh.isRefreshing = false
                 
             } catch (e: Exception) {
                 showLoading(false)
+                swipeRefresh.isRefreshing = false
                 showError("Failed to load weather data: ${e.message}")
                 e.printStackTrace()
             }
