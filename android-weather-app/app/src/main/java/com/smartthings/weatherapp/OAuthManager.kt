@@ -218,9 +218,19 @@ class OAuthManager(private val context: Context) {
         try {
             val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
             if (refreshToken.isNullOrEmpty()) {
-                println("No refresh token available")
+                println("ERROR: No refresh token available")
                 return@withContext false
             }
+            
+            val timestamp = prefs.getLong(KEY_TIMESTAMP, 0)
+            val tokenAgeHours = if (timestamp > 0) {
+                (System.currentTimeMillis() - timestamp) / 1000.0 / 60.0 / 60.0
+            } else {
+                0.0
+            }
+            
+            println("DEBUG: Attempting token refresh")
+            println("DEBUG: has_refresh_token=true, token_age_hours=%.2f".format(tokenAgeHours))
             
             val bodyBuilder = FormBody.Builder()
                 .add("grant_type", "refresh_token")
@@ -228,7 +238,6 @@ class OAuthManager(private val context: Context) {
             
             val requestBuilder = Request.Builder()
                 .url(TOKEN_ENDPOINT)
-                .post(bodyBuilder.build())
             
             // Use Basic Auth if client_secret is available
             if (CLIENT_SECRET.isNotEmpty()) {
@@ -242,27 +251,49 @@ class OAuthManager(private val context: Context) {
                 bodyBuilder.add("client_id", CLIENT_ID)
             }
             
-            val request = requestBuilder.build()
+            val request = requestBuilder
+                .post(bodyBuilder.build())
+                .build()
+            
+            println("DEBUG: Refreshing access token...")
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
-                println("Token refresh failed: ${response.code}")
-                clearTokens()
+                val errorBody = response.body?.string()
+                println("ERROR: Token refresh failed: ${response.code}")
+                println("ERROR: Response: $errorBody")
+                
+                // If refresh token is invalid/expired, clear tokens
+                if (response.code == 401 || response.code == 400) {
+                    println("ERROR: Refresh token invalid or expired - clearing tokens")
+                    clearTokens()
+                }
+                
                 return@withContext false
             }
             
             val responseBody = response.body?.string() ?: return@withContext false
             val json = JSONObject(responseBody)
             
+            val newAccessToken = json.getString("access_token")
+            val newRefreshToken = json.optString("refresh_token", "")
+            val expiresIn = json.optInt("expires_in", 86400)
+            
+            println("DEBUG: Refresh response received")
+            println("DEBUG: has_access_token=${newAccessToken.isNotEmpty()}, has_new_refresh_token=${newRefreshToken.isNotEmpty()}, expires_in=$expiresIn")
+            
+            // Save tokens (will preserve old refresh_token if new one not provided)
             saveTokens(
-                accessToken = json.getString("access_token"),
-                refreshToken = json.optString("refresh_token", refreshToken),
-                expiresIn = json.optInt("expires_in", 86400)
+                accessToken = newAccessToken,
+                refreshToken = newRefreshToken,
+                expiresIn = expiresIn
             )
             
+            println("DEBUG: Token refreshed successfully")
             true
         } catch (e: Exception) {
-            println("Token refresh error: ${e.message}")
+            println("ERROR: Token refresh exception: ${e.message}")
+            e.printStackTrace()
             clearTokens()
             false
         }
@@ -274,17 +305,43 @@ class OAuthManager(private val context: Context) {
      */
     suspend fun getValidAccessToken(): String? {
         if (!isAuthorized()) {
+            println("ERROR: No tokens found - not authorized")
+            return null
+        }
+        
+        val accessToken = prefs.getString(KEY_ACCESS_TOKEN, null)
+        if (accessToken.isNullOrEmpty()) {
+            println("ERROR: No access token found")
             return null
         }
         
         if (isTokenExpired()) {
-            println("Token expired, refreshing...")
+            val timestamp = prefs.getLong(KEY_TIMESTAMP, 0)
+            val ageHours = if (timestamp > 0) {
+                (System.currentTimeMillis() - timestamp) / 1000.0 / 60.0 / 60.0
+            } else {
+                0.0
+            }
+            println("DEBUG: Token expired (age: %.2f hours), refreshing...".format(ageHours))
+            
             if (!refreshAccessToken()) {
+                println("ERROR: Failed to refresh token")
                 return null
             }
+            
+            // Return newly refreshed token
+            return prefs.getString(KEY_ACCESS_TOKEN, null)
         }
         
-        return prefs.getString(KEY_ACCESS_TOKEN, null)
+        val timestamp = prefs.getLong(KEY_TIMESTAMP, 0)
+        val ageMinutes = if (timestamp > 0) {
+            (System.currentTimeMillis() - timestamp) / 1000.0 / 60.0
+        } else {
+            0.0
+        }
+        println("DEBUG: Using existing valid token (age: %.1f minutes)".format(ageMinutes))
+        
+        return accessToken
     }
     
     /**
@@ -312,15 +369,33 @@ class OAuthManager(private val context: Context) {
     
     /**
      * Save OAuth tokens to shared preferences
+     * Preserves existing refresh_token if not provided in response
      */
     private fun saveTokens(accessToken: String, refreshToken: String, expiresIn: Int) {
+        // Preserve existing refresh_token if new one not provided
+        // SmartThings typically doesn't return refresh_token on refresh flow
+        val existingRefreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
+        val finalRefreshToken = if (refreshToken.isEmpty() && existingRefreshToken != null) {
+            println("DEBUG: Preserving existing refresh_token (not returned in response)")
+            existingRefreshToken
+        } else {
+            refreshToken
+        }
+        
+        // Validate we have a refresh token
+        if (finalRefreshToken.isEmpty()) {
+            println("WARNING: No refresh_token available - tokens may not be refreshable")
+        }
+        
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
-            .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .putString(KEY_REFRESH_TOKEN, finalRefreshToken)
             .putInt(KEY_EXPIRES_IN, expiresIn)
             .putLong(KEY_TIMESTAMP, System.currentTimeMillis())
             .apply()
+        
         println("Tokens saved successfully")
+        println("DEBUG: has_access_token=${accessToken.isNotEmpty()}, has_refresh_token=${finalRefreshToken.isNotEmpty()}, expires_in=$expiresIn")
     }
     
     /**
