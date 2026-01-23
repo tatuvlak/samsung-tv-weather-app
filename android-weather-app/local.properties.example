@@ -1,0 +1,11 @@
+# OAuth Configuration for SmartThings API
+# Copy this file to local.properties and fill in your actual values
+# local.properties is gitignored and will not be committed
+
+# Get these values from SmartThings Developer Workspace:
+# https://developer.smartthings.com/workspace/
+
+oauth.clientId=YOUR_CLIENT_ID_HERE
+oauth.clientSecret=YOUR_CLIENT_SECRET_HERE
+oauth.redirectUri=https://tatuvlak.github.io/tv-weather-oauth/callback.html
+oauth.scope=r:devices:* r:locations:*

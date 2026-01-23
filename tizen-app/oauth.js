@@ -43,16 +43,31 @@ const TOKEN_STORAGE_KEY = 'smartthings_oauth_tokens';
 const VERIFIER_STORAGE_KEY = 'smartthings_code_verifier';
 
 function saveTokens(tokens) {
+  // Get existing tokens to preserve refresh_token if not returned
+  const existingTokens = getTokens();
+  
   // Add timestamp for expiration tracking
   const tokenData = {
     access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
+    // Preserve existing refresh_token if new one not provided
+    // SmartThings typically doesn't return refresh_token on refresh flow
+    refresh_token: tokens.refresh_token || (existingTokens && existingTokens.refresh_token),
     expires_in: tokens.expires_in || 86400, // Default 24 hours
     token_type: tokens.token_type || 'Bearer',
     timestamp: Date.now()
   };
+  
+  // Validate we have a refresh token
+  if (!tokenData.refresh_token) {
+    console.warn('No refresh_token available - tokens may not be refreshable');
+  }
+  
   localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokenData));
-  console.log('Tokens saved successfully');
+  console.log('Tokens saved successfully', {
+    has_access_token: !!tokenData.access_token,
+    has_refresh_token: !!tokenData.refresh_token,
+    expires_in: tokenData.expires_in
+  });
 }
 
 function getTokens() {
@@ -195,8 +210,14 @@ async function refreshAccessToken() {
   const tokenData = getTokens();
   
   if (!tokenData || !tokenData.refresh_token) {
+    console.error('No refresh token available');
     throw new Error('No refresh token available. Re-authorization required.');
   }
+  
+  console.log('Attempting token refresh', {
+    has_refresh_token: !!tokenData.refresh_token,
+    token_age_hours: ((Date.now() - tokenData.timestamp) / 1000 / 60 / 60).toFixed(2)
+  });
   
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
@@ -228,10 +249,24 @@ async function refreshAccessToken() {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Token refresh error:', response.status, errorText);
+      
+      // If refresh token is invalid/expired, clear tokens
+      if (response.status === 401 || response.status === 400) {
+        console.error('Refresh token invalid or expired - clearing tokens');
+        clearTokens();
+      }
+      
       throw new Error(`Token refresh failed: ${response.status} ${errorText}`);
     }
     
     const tokens = await response.json();
+    console.log('Refresh response received', {
+      has_access_token: !!tokens.access_token,
+      has_new_refresh_token: !!tokens.refresh_token,
+      expires_in: tokens.expires_in
+    });
+    
+    // Save tokens (will preserve old refresh_token if new one not provided)
     saveTokens(tokens);
     
     console.log('Token refreshed successfully');
@@ -249,20 +284,31 @@ async function getValidAccessToken() {
   const tokenData = getTokens();
   
   if (!tokenData) {
+    console.error('No tokens found - not authorized');
+    throw new Error('NOT_AUTHORIZED');
+  }
+  
+  if (!tokenData.access_token) {
+    console.error('No access token found');
     throw new Error('NOT_AUTHORIZED');
   }
   
   // Check if token is expired or about to expire
   if (isTokenExpired(tokenData)) {
-    console.log('Token expired, refreshing...');
+    const ageHours = ((Date.now() - tokenData.timestamp) / 1000 / 60 / 60).toFixed(2);
+    console.log(`Token expired (age: ${ageHours} hours), refreshing...`);
+    
     try {
       const newTokens = await refreshAccessToken();
       return newTokens.access_token;
     } catch (err) {
+      console.error('Failed to refresh token:', err.message);
       throw new Error('NOT_AUTHORIZED');
     }
   }
   
+  const ageMinutes = ((Date.now() - tokenData.timestamp) / 1000 / 60).toFixed(1);
+  console.log(`Using existing valid token (age: ${ageMinutes} minutes)`);
   return tokenData.access_token;
 }
 
@@ -388,7 +434,39 @@ function displayAuthorizationPrompt(authUrl) {
         // Reload app to show dashboard
         location.reload();
       } catch (err) {
-        alert('Failed to exchange code: ' + err.message);
+        console.error('Authorization failed:', err);
+        
+        // Show error message with retry option
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #dc3545; color: white; border-radius: 8px;';
+        errorDiv.innerHTML = `
+          <p style="margin: 0 0 10px 0; font-weight: bold;">❌ Authorization Failed</p>
+          <p style="margin: 0 0 10px 0; font-size: 14px;">${err.message}</p>
+          <button id="retry-auth-btn" class="focusable" 
+                  style="padding: 10px 20px; font-size: 14px; background: white; color: #dc3545; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            🔄 Clear & Retry Authorization
+          </button>
+        `;
+        
+        // Remove old error message if exists
+        const oldError = document.querySelector('.auth-error-message');
+        if (oldError) oldError.remove();
+        
+        errorDiv.className = 'auth-error-message';
+        submitButton.parentElement.appendChild(errorDiv);
+        
+        // Add retry button handler
+        const retryBtn = document.getElementById('retry-auth-btn');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', async () => {
+            try {
+              await window.OAuth.clearAndRetryAuthorization();
+            } catch (retryErr) {
+              console.error('Retry failed:', retryErr);
+            }
+          });
+        }
+        
         submitButton.textContent = 'Submit Code';
         submitButton.disabled = false;
       }
@@ -421,6 +499,13 @@ function applyVirtualFocus(el) {
   }
 }
 
+// Clear tokens and restart authorization flow
+async function clearAndRetryAuthorization() {
+  clearTokens();
+  const authUrl = await startAuthorizationFlow();
+  displayAuthorizationPrompt(authUrl);
+}
+
 // Export functions for use in app
 window.OAuth = {
   startAuthorizationFlow,
@@ -430,5 +515,6 @@ window.OAuth = {
   isAuthorized,
   clearTokens,
   displayAuthorizationPrompt,
-  getTokens
+  getTokens,
+  clearAndRetryAuthorization
 };

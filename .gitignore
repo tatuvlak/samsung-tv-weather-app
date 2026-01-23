@@ -1,0 +1,19 @@
+# Repository Root .gitignore
+
+# Sensitive local files
+non public.txt
+*.local
+*.secret
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Build artifacts
+*.wgt
+build/
+dist/

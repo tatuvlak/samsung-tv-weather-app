@@ -1,5 +1,11 @@
 // OAuth 2.0 with PKCE Configuration for SmartThings API
 // Register your app at: https://developer.smartthings.com/
+// 
+// SETUP INSTRUCTIONS:
+// 1. Copy this file to config.js
+// 2. Fill in your actual OAuth credentials from SmartThings Developer Workspace
+// 3. config.js is gitignored and will NOT be committed
+
 window.APP_CONFIG = {
   // OAuth Configuration
   oauth: {
