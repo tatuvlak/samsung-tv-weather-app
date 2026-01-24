@@ -46,6 +46,65 @@ const AQI_CATEGORIES = {
 };
 
 // Helper function to normalize AQI value and get category data
+// --- Open-Meteo Forecast Integration ---
+// Default locations: Polanka Hallera, Kraków (Poland, Małopolska)
+const DEFAULT_FORECAST_LOCATIONS = [
+  {
+    name: 'Polanka Hallera',
+    latitude: 49.995,
+    longitude: 19.902
+  },
+  {
+    name: 'Kraków',
+    latitude: 50.067,
+    longitude: 19.912
+  }
+];
+
+function getForecastLocations() {
+  // Try to load from localStorage, fallback to defaults
+  try {
+    const stored = localStorage.getItem('forecastLocations');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return DEFAULT_FORECAST_LOCATIONS;
+}
+
+function setForecastLocations(locations) {
+  localStorage.setItem('forecastLocations', JSON.stringify(locations));
+}
+
+async function fetchOpenMeteoForecast(lat, lon) {
+  // Fetch next 24h hourly forecast for temperature and precipitation
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation&forecast_days=1&timezone=auto`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Forecast fetch failed');
+  return resp.json();
+}
+
+function renderForecastPanel(container, forecasts, locations) {
+  // Render a table for each location
+  let html = '<h2>Forecast (next 24h)</h2>';
+  forecasts.forEach((forecast, idx) => {
+    const loc = locations[idx];
+    if (!forecast || !forecast.hourly) {
+      html += `<div><b>${loc.name}</b>: <span style="color:#c00">No data</span></div>`;
+      return;
+    }
+    html += `<div style="margin-bottom:12px"><b>${loc.name}</b><table style="font-size:13px;margin-top:4px"><tr><th>Hour</th><th>Temp (°C)</th><th>Precip (mm)</th></tr>`;
+    for (let i = 0; i < 24; ++i) {
+      const hour = forecast.hourly.time[i]?.slice(11, 16) || '';
+      const temp = forecast.hourly.temperature_2m[i]?.toFixed(1) ?? '';
+      const precip = forecast.hourly.precipitation[i]?.toFixed(1) ?? '';
+      html += `<tr><td>${hour}</td><td>${temp}</td><td>${precip}</td></tr>`;
+    }
+    html += '</table></div>';
+  });
+  container.innerHTML = html;
+}
 function getAQICategory(aqiValue) {
   // Handle numeric values directly
   if (typeof aqiValue === 'number' && aqiValue >= 0 && aqiValue <= 6) {
@@ -210,16 +269,29 @@ function renderDashboard(deviceStatus) {
           `}
         </section>
 
-        <!-- BOTTOM RIGHT: Reserved for forecast -->
-        <section class="dashboard-panel forecast-panel">
-          <h2>Forecast (v2.0)</h2>
-          <p class="placeholder">Reserved for future forecast integration</p>
+        <!-- BOTTOM RIGHT: Weather Forecast (Open-Meteo) -->
+        <section class="dashboard-panel forecast-panel" id="forecast-panel">
+          <div class="placeholder">Loading forecast...</div>
         </section>
       </div>
     </div>
   `;
 
   container.innerHTML = html;
+
+  // --- Forecast Integration ---
+  (async () => {
+    const locations = getForecastLocations();
+    let forecasts = [];
+    try {
+      forecasts = await Promise.all(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
+    } catch (e) {
+      // If any fail, show error for that location
+      forecasts = locations.map(() => null);
+    }
+    const forecastPanel = document.getElementById('forecast-panel');
+    if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
+  })();
 
   // Update current time every second
   function updateCurrentTime() {
