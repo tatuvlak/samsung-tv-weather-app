@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
         
         // Temperature with color coding
         if (temperature != null) {
-            tvTemperature.text = "${temperature.toInt()}°C"
+                tvTemperature.text = String.format("%.1f°C", temperature)
             val tempBand = getTempClothing(temperature)
             tvTemperature.setTextColor(android.graphics.Color.parseColor(tempBand.color))
             
