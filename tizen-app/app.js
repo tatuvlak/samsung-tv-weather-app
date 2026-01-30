@@ -105,7 +105,11 @@ async function refreshDashboard(){
     const accessToken = await window.OAuth.getValidAccessToken();
     status.textContent = 'Refreshing...';
     await fetchAndRenderDashboard(accessToken, selectedDeviceId);
-    status.textContent = 'Dashboard ready';
+    // update the Last updated timestamp to mark dashboard refresh
+    try {
+      const lastEl = document.getElementById('last-updated');
+      if (lastEl) lastEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+    } catch (e) { /* ignore */ }
   } catch(err) {
     if(err.message === 'NOT_AUTHORIZED'){
       await initiateOAuthFlow();

@@ -78,31 +78,109 @@ function setForecastLocations(locations) {
 }
 
 async function fetchOpenMeteoForecast(lat, lon) {
-  // Fetch next 24h hourly forecast for temperature and precipitation
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation&forecast_days=1&timezone=auto`;
+  // Fetch next 40h hourly forecast for temperature, apparent temperature, precipitation,
+  // precipitation probability, windspeed, and weathercode so we can render richer UI
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,windspeed_10m,weathercode&forecast_hours=40&timezone=auto`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error('Forecast fetch failed');
   return resp.json();
 }
-
 function renderForecastPanel(container, forecasts, locations) {
-  // Render a table for each location
-  let html = '<h2>Forecast (next 24h)</h2>';
-  forecasts.forEach((forecast, idx) => {
-    const loc = locations[idx];
-    if (!forecast || !forecast.hourly) {
-      html += `<div><b>${loc.name}</b>: <span style="color:#c00">No data</span></div>`;
-      return;
+  // Render a horizontal grid (master table) so all locations align by hour
+  let html = '<h2>Forecast</h2><div class="placeholder">No forecast data</div>';
+
+  const weatherIcons = {
+    0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌦️', 56: '🌧️', 57: '🌧️',
+    61: '🌦️', 63: '🌧️', 65: '🌧️', 66: '🌧️', 67: '🌧️',
+    71: '🌨️', 73: '🌨️', 75: '❄️', 77: '❄️',
+    80: '🌦️', 81: '🌧️', 82: '🌧️', 85: '🌨️', 86: '❄️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️'
+  };
+
+  if (forecasts && forecasts.length > 0) {
+    const firstForecast = forecasts.find(f => f && f.hourly) || null;
+    if (!firstForecast) { container.innerHTML = html; return; }
+
+    const times = firstForecast.hourly.time;
+    const now = new Date();
+    let startIdx = 0;
+    for (let i = 0; i < times.length; ++i) {
+      const t = new Date(times[i]);
+      if (t >= now) { startIdx = i; break; }
     }
-    html += `<div style="margin-bottom:12px"><b>${loc.name}</b><table style="font-size:13px;margin-top:4px"><tr><th>Hour</th><th>Temp (°C)</th><th>Precip (mm)</th></tr>`;
-    for (let i = 0; i < 24; ++i) {
-      const hour = forecast.hourly.time[i]?.slice(11, 16) || '';
-      const temp = forecast.hourly.temperature_2m[i]?.toFixed(1) ?? '';
-      const precip = forecast.hourly.precipitation[i]?.toFixed(1) ?? '';
-      html += `<tr><td>${hour}</td><td>${temp}</td><td>${precip}</td></tr>`;
+
+    const hoursToShow = 12;
+    html = `<h2>Forecast (next ${hoursToShow}h)</h2>`;
+    html += '<div class="forecast-table-container"><table class="forecast-table">';
+
+    // Header
+    html += '<tr><th class="forecast-th"></th><th class="forecast-th">Hour</th>';
+    for (let i = startIdx; i < startIdx + hoursToShow; ++i) {
+      const hour = times[i]?.slice(11,16) || '';
+      html += `<th class="forecast-th">${hour}</th>`;
     }
+    html += '</tr>';
+
+    // Rows per location
+    for (let idx = 0; idx < locations.length; ++idx) {
+      const loc = locations[idx];
+      const forecast = forecasts[idx];
+      if (!forecast || !forecast.hourly) {
+        html += `<tr><td colspan="${2 + hoursToShow}">${loc.name}: <span style=\"color:#c00\">No data</span></td></tr>`;
+        continue;
+      }
+
+      const metricRows = ['Weather','Temp (°C)','Feels Like (°C)','Wind (km/h)','Precip (mm / %)'];
+      for (let r = 0; r < metricRows.length; ++r) {
+        const cls = '';
+        html += `<tr class="${cls}">`;
+        if (r === 0) html += `<td class="location-name-vertical" rowspan="${metricRows.length}">${loc.name}</td>`;
+        html += `<td class="forecast-th">${metricRows[r]}</td>`;
+
+        for (let i = startIdx; i < startIdx + hoursToShow; ++i) {
+          if (r === 0) {
+            const code = forecast.hourly.weathercode?.[i];
+            const icon = weatherIcons[code] || '❓';
+            html += `<td class="forecast-td weather-icon-cell">${icon}</td>`;
+          } else if (r === 1) {
+            const temp = forecast.hourly.temperature_2m[i]?.toFixed(1) ?? '';
+            html += `<td class="forecast-td">${temp}</td>`;
+          } else if (r === 2) {
+            const appTemp = forecast.hourly.apparent_temperature?.[i]?.toFixed(1) ?? '';
+            html += `<td class="forecast-td">${appTemp}</td>`;
+          } else if (r === 3) {
+            const wind = forecast.hourly.windspeed_10m?.[i]?.toFixed(1) ?? '';
+            html += `<td class="forecast-td">${wind}</td>`;
+          } else if (r === 4) {
+            const code = forecast.hourly.weathercode?.[i];
+            const precip = forecast.hourly.precipitation[i]?.toFixed(1) ?? '';
+            const prob = forecast.hourly.precipitation_probability?.[i] ?? '';
+            let icon = '';
+            if ([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(code)) {
+              const n = Math.max(1, Math.min(3, Math.round(forecast.hourly.precipitation[i] ?? 0)));
+              icon = '💧'.repeat(n);
+            } else if ([71,73,75,77,85,86].includes(code)) {
+              const n = Math.max(1, Math.min(3, Math.round(forecast.hourly.precipitation[i] ?? 0)));
+              icon = '❄️'.repeat(n);
+            }
+            let content;
+            if (icon) {
+              content = `<div class="precip-container"><div class="precip-values"><div class="precip-amount">${precip}</div><div class="precip-prob">${prob !== '' ? prob + '%' : ''}</div></div><div class="precip-icon">${icon}</div></div>`;
+            } else {
+              content = `<div class="precip-values"><div class="precip-amount">${precip}</div><div class="precip-prob">${prob !== '' ? prob + '%' : ''}</div></div>`;
+            }
+            html += `<td class="forecast-td">${content}</td>`;
+          }
+        }
+
+        html += '</tr>';
+      }
+    }
+
     html += '</table></div>';
-  });
+  }
+
   container.innerHTML = html;
 }
 function getAQICategory(aqiValue) {
@@ -192,14 +270,6 @@ function renderDashboard(deviceStatus) {
 
   const html = `
     <div class="dashboard">
-      <header class="dashboard-header">
-        <h1>Weather</h1>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-          <span class="current-time" id="current-time"></span>
-          <span class="timestamp">Last updated: ${lastUpdatedTime}</span>
-        </div>
-      </header>
-
       <div class="dashboard-grid">
         <!-- TOP LEFT: Air Quality (most urgent) -->
         <section class="dashboard-panel air-quality-panel">
@@ -282,24 +352,23 @@ function renderDashboard(deviceStatus) {
   // --- Forecast Integration ---
   (async () => {
     const locations = getForecastLocations();
-    let forecasts = [];
-    try {
-      forecasts = await Promise.all(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
-    } catch (e) {
-      // If any fail, show error for that location
-      forecasts = locations.map(() => null);
-    }
+    // Fetch per-location and allow individual failures without aborting all
+    const settled = await Promise.allSettled(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
+    const forecasts = settled.map((s, i) => {
+      if (s.status === 'fulfilled') return s.value;
+      console.warn('Forecast fetch failed for', locations[i]?.name, s.reason);
+      return null;
+    });
     const forecastPanel = document.getElementById('forecast-panel');
     if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
   })();
 
-  // Update current time every second
+  // Update current time and last-updated timestamp every second
   function updateCurrentTime() {
     const currentTimeEl = document.getElementById('current-time');
-    if (currentTimeEl) {
-      currentTimeEl.textContent = new Date().toLocaleTimeString();
-    }
+    if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
   }
+  // Note: `last-updated` is updated by the caller (app.js) when a dashboard refresh completes.
   updateCurrentTime();
   setInterval(updateCurrentTime, 1000);
 }
