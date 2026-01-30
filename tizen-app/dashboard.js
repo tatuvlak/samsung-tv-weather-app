@@ -135,7 +135,7 @@ function renderForecastPanel(container, forecasts, locations) {
       for (let r = 0; r < metricRows.length; ++r) {
         const cls = '';
         html += `<tr class="${cls}">`;
-        if (r === 0) html += `<td class="location-name-vertical" rowspan="${metricRows.length}">${loc.name}</td>`;
+        if (r === 0) html += `<td class="location-name-outer" rowspan="${metricRows.length}"><div class="location-name-inner">${loc.name}</div></td>`;
         html += `<td class="forecast-th">${metricRows[r]}</td>`;
 
         for (let i = startIdx; i < startIdx + hoursToShow; ++i) {
