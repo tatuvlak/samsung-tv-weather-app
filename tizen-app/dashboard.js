@@ -132,9 +132,10 @@ function renderForecastPanel(container, forecasts, locations) {
       }
 
       const metricRows = ['Weather','Temp (°C)','Feels Like (°C)','Wind (km/h)','Precip (mm / %)'];
-      for (let r = 0; r < metricRows.length; ++r) {
-        const cls = '';
-        html += `<tr class="${cls}">`;
+        const metricClassMap = ['metric-weather','metric-temp','metric-feels','metric-wind','metric-precip'];
+        for (let r = 0; r < metricRows.length; ++r) {
+          const cls = `forecast-row ${metricClassMap[r]} loc-${idx}`;
+          html += `<tr class="${cls}">`;
         if (r === 0) html += `<td class="location-name-outer" rowspan="${metricRows.length}"><div class="location-name-inner">${loc.name}</div></td>`;
         html += `<td class="forecast-th">${metricRows[r]}</td>`;
 
@@ -182,6 +183,27 @@ function renderForecastPanel(container, forecasts, locations) {
   }
 
   container.innerHTML = html;
+
+  // Ensure top panels share the same outer frame height as the Air Quality panel.
+  // We only set heights here (no other layout changes) so that Temperature and Humidity
+  // panels exactly match the rendered Air Quality panel height.
+  function syncTopPanelHeights() {
+    try {
+      const air = document.querySelector('.air-quality-panel');
+      const temp = document.querySelector('.temperature-panel');
+      const hum = document.querySelector('.humidity-panel');
+      if (!air || !temp || !hum) return;
+      const h = Math.round(air.getBoundingClientRect().height) + 'px';
+      temp.style.height = h;
+      hum.style.height = h;
+    } catch (e) {
+      console.warn('syncTopPanelHeights failed', e);
+    }
+  }
+
+  // Sync now and when the window resizes or content updates
+  syncTopPanelHeights();
+  window.addEventListener('resize', syncTopPanelHeights);
 }
 function getAQICategory(aqiValue) {
   // Handle numeric values directly
