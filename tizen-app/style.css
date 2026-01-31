@@ -91,7 +91,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .humidity-panel .metric-row .metric-display, .humidity-panel .metric-row .metric-display * { box-sizing: border-box; }
 
 /* Make top three panels the same height */
-.air-quality-panel, .temperature-panel, .humidity-panel { min-height: 12vw; display: flex; flex-direction: column; }
+.air-quality-panel, .temperature-panel, .humidity-panel { height: 12vw; display: flex; flex-direction: column; }
 
 #debug-output { margin-top: 1.2vw; background: #031021; padding: 0.8vw; border-radius: 0.6vw; }
 #debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 0.9vw; margin: 0; }
