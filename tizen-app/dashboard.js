@@ -132,9 +132,10 @@ function renderForecastPanel(container, forecasts, locations) {
       }
 
       const metricRows = ['Weather','Temp (°C)','Feels Like (°C)','Wind (km/h)','Precip (mm / %)'];
-      for (let r = 0; r < metricRows.length; ++r) {
-        const cls = '';
-        html += `<tr class="${cls}">`;
+        const metricClassMap = ['metric-weather','metric-temp','metric-feels','metric-wind','metric-precip'];
+        for (let r = 0; r < metricRows.length; ++r) {
+          const cls = `forecast-row ${metricClassMap[r]} loc-${idx}`;
+          html += `<tr class="${cls}">`;
         if (r === 0) html += `<td class="location-name-outer" rowspan="${metricRows.length}"><div class="location-name-inner">${loc.name}</div></td>`;
         html += `<td class="forecast-th">${metricRows[r]}</td>`;
 

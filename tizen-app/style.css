@@ -17,7 +17,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .dashboard-header h1 { margin: 0; font-size:20px; }
 .timestamp { font-size:12px; opacity:0.7; }
 
-.dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2vw; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2vw; align-items: start; }
 
 .dashboard-panel { background: #071024; border: 0.2vw solid #0099ff; border-radius: 0.6vw; padding: 1.0vw; }
 .dashboard-panel h2 { font-size: 1.1vw; margin: 0 0 0.8vw 0; text-transform: uppercase; opacity: 0.9; }
@@ -68,6 +68,21 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .precip-icon { font-size: 0.95vw; }
 .precip-amount { font-weight:600; }
 .precip-prob { opacity:0.8; font-size:0.8vw; }
+
+/* Per-metric row coloring to reduce visual monotony */
+.forecast-table tr.metric-weather td { color: #cfe9ff; }
+.forecast-table tr.metric-temp td { color: #fff1bf; }
+.forecast-table tr.metric-feels td { color: #d6f7ff; }
+.forecast-table tr.metric-wind td { color: #ffd7a6; }
+.forecast-table tr.metric-precip td { color: #bfefff; }
+
+/* Header should remain high-contrast */
+.forecast-table tr:first-child td { color: inherit; }
+
+/* Right-align labels inside humidity/pressure panel and keep metric frames top-aligned */
+.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; }
+.humidity-panel .metric-row label { text-align: right; width: 100%; }
+.humidity-panel .metric-row .metric-display { width: 100%; }
 
 #debug-output { margin-top: 1.2vw; background: #031021; padding: 0.8vw; border-radius: 0.6vw; }
 #debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 0.9vw; margin: 0; }
