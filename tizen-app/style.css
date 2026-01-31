@@ -84,7 +84,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 /* Right-align labels inside humidity/pressure panel and keep metric frames top-aligned */
 .humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: 0; position: relative; }
 /* Position the label absolutely so it does not push the frame down; right-align it visually */
-.humidity-panel .metric-row label { position: absolute; right: 0.6vw; top: -0.6vw; text-align: right; width: auto; margin: 0; }
+.humidity-panel .metric-row label { position: absolute; right: 0.6vw; top: -1.1vw; text-align: right; width: auto; margin: 0; }
 .humidity-panel .metric-row .metric-display { align-self: stretch; box-sizing: border-box; max-width: 100%; overflow: hidden; margin-top: 0; }
 
 /* Ensure the inner frames don't overflow the parent panel */
