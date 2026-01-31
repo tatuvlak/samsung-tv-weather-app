@@ -1,4 +1,6 @@
 body { font-family: Arial, Helvetica, sans-serif; background:#0b1220; color:#e6eef8; margin:0; padding:1.2vw; }
+/* Include padding/border in element width calculations to avoid overflow */
+*, *::before, *::after { box-sizing: border-box; }
 main { max-width:90vw; margin:0 auto; }
 h1 { font-size:2.0vw; margin-bottom: 1.0vw; }
 h2 { font-size:1.4vw; margin:0 0 0.8vw 0; }
@@ -80,9 +82,12 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .forecast-table tr:first-child td { color: inherit; }
 
 /* Right-align labels inside humidity/pressure panel and keep metric frames top-aligned */
-.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; }
-.humidity-panel .metric-row label { text-align: right; width: 100%; }
-.humidity-panel .metric-row .metric-display { width: 100%; }
+.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: -0.6vw; }
+.humidity-panel .metric-row label { text-align: right; width: 100%; margin-bottom: 0; }
+.humidity-panel .metric-row .metric-display { align-self: stretch; box-sizing: border-box; max-width: 100%; overflow: hidden; }
+
+/* Ensure the inner frames don't overflow the parent panel */
+.humidity-panel .metric-row .metric-display, .humidity-panel .metric-row .metric-display * { box-sizing: border-box; }
 
 #debug-output { margin-top: 1.2vw; background: #031021; padding: 0.8vw; border-radius: 0.6vw; }
 #debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 0.9vw; margin: 0; }
