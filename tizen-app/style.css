@@ -82,12 +82,16 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .forecast-table tr:first-child td { color: inherit; }
 
 /* Right-align labels inside humidity/pressure panel and keep metric frames top-aligned */
-.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: -0.95vw; }
-.humidity-panel .metric-row label { text-align: right; width: 100%; margin-bottom: 0; }
-.humidity-panel .metric-row .metric-display { align-self: stretch; box-sizing: border-box; max-width: 100%; overflow: hidden; }
+.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: 0; position: relative; }
+/* Position the label absolutely so it does not push the frame down; right-align it visually */
+.humidity-panel .metric-row label { position: absolute; right: 0.6vw; top: -0.6vw; text-align: right; width: auto; margin: 0; }
+.humidity-panel .metric-row .metric-display { align-self: stretch; box-sizing: border-box; max-width: 100%; overflow: hidden; margin-top: 0; }
 
 /* Ensure the inner frames don't overflow the parent panel */
 .humidity-panel .metric-row .metric-display, .humidity-panel .metric-row .metric-display * { box-sizing: border-box; }
+
+/* Make top three panels the same height */
+.air-quality-panel, .temperature-panel, .humidity-panel { min-height: 12vw; display: flex; flex-direction: column; }
 
 #debug-output { margin-top: 1.2vw; background: #031021; padding: 0.8vw; border-radius: 0.6vw; }
 #debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 0.9vw; margin: 0; }
