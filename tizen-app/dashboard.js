@@ -78,12 +78,26 @@ function setForecastLocations(locations) {
 }
 
 async function fetchOpenMeteoForecast(lat, lon) {
-  // Fetch next 40h hourly forecast for temperature, apparent temperature, precipitation,
-  // precipitation probability, windspeed, and weathercode so we can render richer UI
+  // Robust fetch with no-cache and a single retry. Returns parsed JSON or null on failure.
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,windspeed_10m,weathercode&forecast_hours=40&timezone=auto`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('Forecast fetch failed');
-  return resp.json();
+
+  const tryFetch = async () => {
+    try {
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (!resp.ok) return null;
+      const j = await resp.json();
+      // basic validation
+      if (!j || !j.hourly || !Array.isArray(j.hourly.time)) return null;
+      return j;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const first = await tryFetch();
+  if (first) return first;
+  // one quick retry for transient network issues
+  return await tryFetch();
 }
 function renderForecastPanel(container, forecasts, locations) {
   // Render a horizontal grid (master table) so all locations align by hour
@@ -374,31 +388,14 @@ function renderDashboard(deviceStatus) {
   // --- Forecast Integration ---
   (async () => {
     const locations = getForecastLocations();
-    // Simple cache to persist last-good forecast per location so app shows data
-    // on subsequent starts if live fetch fails (e.g. network/cors issues).
-    const CACHE_KEY = 'forecastCache_v1';
-    let cache = {};
-    try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch (e) { cache = {}; }
-
-    // Fetch per-location and allow individual failures without aborting all
-    const settled = await Promise.allSettled(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
-
-    const forecasts = await Promise.all(locations.map(async (loc, i) => {
-      const key = `${loc.latitude},${loc.longitude}`;
-      const result = settled[i];
-      if (result && result.status === 'fulfilled' && result.value && result.value.hourly) {
-        // store last-good response in cache
-        try { cache[key] = result.value; localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore storage failures */ }
-        return result.value;
-      }
-
-      // fallback to cached value if available
-      if (cache[key] && cache[key].hourly) return cache[key];
-
-      console.warn('Forecast fetch failed for', loc?.name, result && result.reason);
+    // Fetch per-location; fetchOpenMeteoForecast returns parsed JSON or null on failure.
+    const promises = locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude));
+    const results = await Promise.all(promises);
+    const forecasts = results.map((r, i) => {
+      if (r && r.hourly) return r;
+      console.warn('Forecast unavailable for', locations[i]?.name);
       return null;
-    }));
-
+    });
     const forecastPanel = document.getElementById('forecast-panel');
     if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
   })();
