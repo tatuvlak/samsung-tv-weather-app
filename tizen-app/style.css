@@ -25,7 +25,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .dashboard-panel h2 { font-size: 1.1vw; margin: 0 0 0.8vw 0; text-transform: uppercase; opacity: 0.9; }
 
 /* Air Quality Panel (Top Left) */
-.air-quality-panel { grid-column: 1; grid-row: 1; }
+.air-quality-panel { grid-column: 1; grid-row: 1; height: 12vw; }
 .metric-display { border: 0.28vw solid; border-radius: 0.5vw; padding: 0.6vw; text-align: center; margin-bottom: 0.8vw; display:flex; align-items:center; justify-content:center; gap:0.6vw; }
 .aqi-icon { font-size: 2.2vw; display: block; margin: 0; }
 .aqi-label { font-size: 1.2vw; font-weight: bold; display: inline-block; }
@@ -36,7 +36,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .alert-message { padding: 0.6vw; border-radius: 0.4vw; font-size: 0.95vw; font-weight: bold; text-align: center; }
 
 /* Temperature Panel (Top Right) */
-.temperature-panel { grid-column: 2; grid-row: 1; }
+.temperature-panel { grid-column: 2; grid-row: 1; height: 12vw; }
 .temp-display { border: 0.28vw solid; border-radius: 0.5vw; padding: 0.8vw; text-align: center; margin-bottom: 0.8vw; display: flex; align-items: center; justify-content: center; gap: 0.8vw; }
 .temp-value { font-size: 2.2vw; font-weight: bold; }
 .temp-color-indicator { width: 1.6vw; height: 1.6vw; border-radius: 0.3vw; }
@@ -45,7 +45,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .clothing-recommendation li { padding: 4px 0; font-size: 13px; }
 
 /* Humidity & Pressure Panel (Bottom Left) */
-.humidity-panel { grid-column: 3; grid-row: 1; }
+.humidity-panel { grid-column: 3; grid-row: 1; height: 12vw; }
 .metric-row { margin-bottom: 0.8vw; }
 .metric-row label { display: block; font-size: 1.0vw; opacity: 0.8; margin-bottom: 0.3vw; }
 .metric-row .metric-display { border: 0.2vw solid; border-radius: 0.5vw; padding: 0.8vw; text-align: center; }
