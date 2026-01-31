@@ -374,13 +374,31 @@ function renderDashboard(deviceStatus) {
   // --- Forecast Integration ---
   (async () => {
     const locations = getForecastLocations();
+    // Simple cache to persist last-good forecast per location so app shows data
+    // on subsequent starts if live fetch fails (e.g. network/cors issues).
+    const CACHE_KEY = 'forecastCache_v1';
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch (e) { cache = {}; }
+
     // Fetch per-location and allow individual failures without aborting all
     const settled = await Promise.allSettled(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
-    const forecasts = settled.map((s, i) => {
-      if (s.status === 'fulfilled') return s.value;
-      console.warn('Forecast fetch failed for', locations[i]?.name, s.reason);
+
+    const forecasts = await Promise.all(locations.map(async (loc, i) => {
+      const key = `${loc.latitude},${loc.longitude}`;
+      const result = settled[i];
+      if (result && result.status === 'fulfilled' && result.value && result.value.hourly) {
+        // store last-good response in cache
+        try { cache[key] = result.value; localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* ignore storage failures */ }
+        return result.value;
+      }
+
+      // fallback to cached value if available
+      if (cache[key] && cache[key].hourly) return cache[key];
+
+      console.warn('Forecast fetch failed for', loc?.name, result && result.reason);
       return null;
-    });
+    }));
+
     const forecastPanel = document.getElementById('forecast-panel');
     if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
   })();
