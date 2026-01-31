@@ -1,15 +1,15 @@
-body { font-family: Arial, Helvetica, sans-serif; background:#0b1220; color:#e6eef8; margin:0; padding:24px; }
-main { max-width:1200px; margin:0 auto; }
-h1 { font-size:24px; margin-bottom: 16px; }
-h2 { font-size:16px; margin:0 0 12px 0; }
-h3 { font-size:14px; margin:8px 0; }
+body { font-family: Arial, Helvetica, sans-serif; background:#0b1220; color:#e6eef8; margin:0; padding:1.2vw; }
+main { max-width:90vw; margin:0 auto; }
+h1 { font-size:2.0vw; margin-bottom: 1.0vw; }
+h2 { font-size:1.4vw; margin:0 0 0.8vw 0; }
+h3 { font-size:1.1vw; margin:0.5vw 0; }
 
 #controls { margin-top: 24px; padding:12px; background:#031021; border-radius:6px; opacity: 0.7; }
 .control-group { margin-bottom: 12px; }
 #controls button { margin-right:8px; padding:10px 16px; font-size:12px; background:#0066aa; color:#fff; border:none; border-radius:4px; cursor:pointer; }
 #controls button:hover { background:#0099ff; }
 #controls input { padding:8px 12px; font-size:12px; background:#0b1220; color:#e6eef8; border:1px solid #0066aa; border-radius:4px; }
-#status { font-size:12px; opacity:0.8; }
+#status { display: none; }
 
 /* Dashboard Grid Layout */
 .dashboard { display: flex; flex-direction: column; gap: 16px; }
@@ -17,61 +17,77 @@ h3 { font-size:14px; margin:8px 0; }
 .dashboard-header h1 { margin: 0; font-size:20px; }
 .timestamp { font-size:12px; opacity:0.7; }
 
-.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2vw; }
 
-.dashboard-panel { background: #071024; border: 2px solid #0099ff; border-radius: 8px; padding: 16px; }
-.dashboard-panel h2 { font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; opacity: 0.9; }
+.dashboard-panel { background: #071024; border: 0.2vw solid #0099ff; border-radius: 0.6vw; padding: 1.0vw; }
+.dashboard-panel h2 { font-size: 1.1vw; margin: 0 0 0.8vw 0; text-transform: uppercase; opacity: 0.9; }
 
 /* Air Quality Panel (Top Left) */
 .air-quality-panel { grid-column: 1; grid-row: 1; }
-.metric-display { border: 3px solid; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 12px; }
-.aqi-icon { font-size: 32px; display: block; margin-bottom: 4px; }
-.aqi-label { font-size: 18px; font-weight: bold; display: block; }
-.pm-details { margin-bottom: 12px; }
-.pm-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.metric-display { border: 0.28vw solid; border-radius: 0.5vw; padding: 0.6vw; text-align: center; margin-bottom: 0.8vw; display:flex; align-items:center; justify-content:center; gap:0.6vw; }
+.aqi-icon { font-size: 2.2vw; display: block; margin: 0; }
+.aqi-label { font-size: 1.2vw; font-weight: bold; display: inline-block; }
+.pm-details { margin-bottom: 0.8vw; }
+.pm-row { display: flex; justify-content: space-between; margin-bottom: 0.5vw; font-size: 1.0vw; }
 .pm-row label { opacity: 0.8; }
 .pm-value { font-weight: bold; }
-.alert-message { padding: 8px; border-radius: 4px; font-size: 13px; font-weight: bold; text-align: center; }
+.alert-message { padding: 0.6vw; border-radius: 0.4vw; font-size: 0.95vw; font-weight: bold; text-align: center; }
 
 /* Temperature Panel (Top Right) */
 .temperature-panel { grid-column: 2; grid-row: 1; }
-.temp-display { border: 3px solid; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
-.temp-value { font-size: 28px; font-weight: bold; }
-.temp-color-indicator { width: 24px; height: 24px; border-radius: 4px; }
+.temp-display { border: 0.28vw solid; border-radius: 0.5vw; padding: 0.8vw; text-align: center; margin-bottom: 0.8vw; display: flex; align-items: center; justify-content: center; gap: 0.8vw; }
+.temp-value { font-size: 2.2vw; font-weight: bold; }
+.temp-color-indicator { width: 1.6vw; height: 1.6vw; border-radius: 0.3vw; }
 .clothing-recommendation h3 { margin-top: 0; }
 .clothing-recommendation ul { list-style: none; padding: 0; margin: 0; }
 .clothing-recommendation li { padding: 4px 0; font-size: 13px; }
 
 /* Humidity & Pressure Panel (Bottom Left) */
-.humidity-panel { grid-column: 1; grid-row: 2; }
-.metric-row { margin-bottom: 12px; }
-.metric-row label { display: block; font-size: 12px; opacity: 0.8; margin-bottom: 4px; }
-.metric-row .metric-display { border: 2px solid; border-radius: 6px; padding: 12px; text-align: center; }
-.metric-value { font-size: 20px; font-weight: bold; }
+.humidity-panel { grid-column: 3; grid-row: 1; }
+.metric-row { margin-bottom: 0.8vw; }
+.metric-row label { display: block; font-size: 1.0vw; opacity: 0.8; margin-bottom: 0.3vw; }
+.metric-row .metric-display { border: 0.2vw solid; border-radius: 0.5vw; padding: 0.8vw; text-align: center; }
+.metric-value { font-size: 1.6vw; font-weight: bold; }
 
 /* Forecast Panel (Bottom Right) */
-.forecast-panel { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.placeholder { text-align: center; opacity: 0.5; font-size: 13px; }
+.forecast-panel { grid-column: 1 / -1; grid-row: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.placeholder { text-align: center; opacity: 0.5; font-size: 1.0vw; }
 
-#debug-output { margin-top: 24px; background: #031021; padding: 12px; border-radius: 6px; }
-#debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 11px; margin: 0; }
+/* Forecast table responsive styles */
+.forecast-table-container { width: 100%; overflow: hidden; }
+.forecast-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.85vw; }
+.forecast-th { padding: 0.35vw 0.25vw; border-bottom: 1px solid #0b2333; text-align: center; font-weight: 600; width: 4.2vw; }
+.forecast-table tr > .forecast-th:nth-child(2) { width: 6.5vw; text-align: left; padding-left: 0.6vw; white-space: nowrap; }
+.forecast-td { padding: 0.3vw 0.3vw; text-align: center; vertical-align: middle; }
+.weather-icon-cell { font-size: 0.9vw; }
+.location-name-vertical { writing-mode: vertical-rl; transform: rotate(180deg); padding: 0.4vw; white-space: nowrap; }
+.location-name-outer { width: 3.8vw; max-width: 3.8vw; padding: 0; overflow: hidden; display: table-cell; vertical-align: middle; }
+.location-name-inner { display: block; writing-mode: vertical-rl; transform: rotate(180deg); transform-origin: center; font-size: 0.95vw; line-height: 1; white-space: nowrap; }
+.precip-container { display:flex; flex-direction:row; align-items:center; gap:0.4vw; justify-content:center; }
+.precip-values { font-size: 0.9vw; line-height:1; display:flex; flex-direction:row; gap:0.3vw; align-items:center; }
+.precip-icon { font-size: 0.95vw; }
+.precip-amount { font-weight:600; }
+.precip-prob { opacity:0.8; font-size:0.8vw; }
+
+#debug-output { margin-top: 1.2vw; background: #031021; padding: 0.8vw; border-radius: 0.6vw; }
+#debug-output pre { white-space: pre-wrap; color: #cfe8ff; font-size: 0.9vw; margin: 0; }
 
 /* TV remote focus styles */
 .focusable:focus,
 .focusable:focus-visible {
-	outline: 3px solid #00ccff;
-	outline-offset: 2px;
-	box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.25);
+	outline: 0.28vw solid #00ccff;
+	outline-offset: 0.3vw;
+	box-shadow: 0 0 0 0.3vw rgba(0, 204, 255, 0.25);
 }
 
 .focusable.tv-focused {
-	outline: 3px solid #00ccff;
-	outline-offset: 2px;
-	box-shadow: 0 0 0 2px rgba(0, 204, 255, 0.25);
+	outline: 0.28vw solid #00ccff;
+	outline-offset: 0.3vw;
+	box-shadow: 0 0 0 0.3vw rgba(0, 204, 255, 0.25);
 }
 
-code { background: #031021; padding: 2px 6px; border-radius: 4px; }
-footer { margin-top: 24px; opacity: 0.8; font-size: 12px; }
+code { background: #031021; padding: 0.3vw 0.6vw; border-radius: 0.4vw; }
+footer { margin-top: 1.2vw; opacity: 0.8; font-size: 1.0vw; }
 
 /* OAuth Authorization Prompt */
 .auth-prompt { background: #071024; border: 2px solid #0099ff; border-radius: 8px; padding: 24px; text-align: center; }
