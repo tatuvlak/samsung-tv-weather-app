@@ -82,7 +82,7 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .forecast-table tr:first-child td { color: inherit; }
 
 /* Right-align labels inside humidity/pressure panel and keep metric frames top-aligned */
-.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: -0.6vw; }
+.humidity-panel .metric-row { display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 0.8vw; margin-top: -0.95vw; }
 .humidity-panel .metric-row label { text-align: right; width: 100%; margin-bottom: 0; }
 .humidity-panel .metric-row .metric-display { align-self: stretch; box-sizing: border-box; max-width: 100%; overflow: hidden; }
 
