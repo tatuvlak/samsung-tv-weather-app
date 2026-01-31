@@ -83,6 +83,7 @@ async function fetchOpenMeteoForecast(lat, lon) {
 
   const tryFetch = async () => {
     try {
+      console.log('fetchOpenMeteoForecast start', lat, lon);
       const resp = await fetch(url, { cache: 'no-store' });
       if (!resp.ok) return null;
       const j = await resp.json();
@@ -386,19 +387,24 @@ function renderDashboard(deviceStatus) {
   container.innerHTML = html;
 
   // --- Forecast Integration ---
-  (async () => {
-    const locations = getForecastLocations();
-    // Fetch per-location; fetchOpenMeteoForecast returns parsed JSON or null on failure.
-    const promises = locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude));
-    const results = await Promise.all(promises);
-    const forecasts = results.map((r, i) => {
-      if (r && r.hourly) return r;
-      console.warn('Forecast unavailable for', locations[i]?.name);
-      return null;
-    });
-    const forecastPanel = document.getElementById('forecast-panel');
-    if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
-  })();
+  // Run fetch shortly after render to avoid any timing issues where the
+  // forecast panel element might not be ready in some TV startup scenarios.
+  setTimeout(() => {
+    (async () => {
+      console.log('Starting forecast integration');
+      const locations = getForecastLocations();
+      // Fetch per-location; fetchOpenMeteoForecast returns parsed JSON or null on failure.
+      const promises = locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude));
+      const results = await Promise.all(promises);
+      const forecasts = results.map((r, i) => {
+        if (r && r.hourly) return r;
+        console.warn('Forecast unavailable for', locations[i]?.name);
+        return null;
+      });
+      const forecastPanel = document.getElementById('forecast-panel');
+      if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
+    })();
+  }, 120);
 
   // Update current time and last-updated timestamp every second
   function updateCurrentTime() {
