@@ -61,8 +61,8 @@ h3 { font-size:1.1vw; margin:0.5vw 0; }
 .forecast-td { padding: 0.3vw 0.3vw; text-align: center; vertical-align: middle; }
 .weather-icon-cell { font-size: 0.9vw; }
 .location-name-vertical { writing-mode: vertical-rl; transform: rotate(180deg); padding: 0.4vw; white-space: nowrap; }
-.location-name-outer { width: 3.8vw; max-width: 3.8vw; padding: 0; vertical-align: middle; overflow: hidden; }
-.location-name-inner { display: inline-block; transform: rotate(90deg); transform-origin: center; font-size: 0.95vw; line-height: 1; white-space: nowrap; }
+.location-name-outer { width: 3.8vw; max-width: 3.8vw; padding: 0; vertical-align: middle; overflow: hidden; display:flex; align-items:center; justify-content:center; }
+.location-name-inner { display: inline-block; transform: rotate(270deg); transform-origin: center; font-size: 0.95vw; line-height: 1; white-space: nowrap; }
 .precip-container { display:flex; flex-direction:row; align-items:center; gap:0.4vw; justify-content:center; }
 .precip-values { font-size: 0.9vw; line-height:1; display:flex; flex-direction:row; gap:0.3vw; align-items:center; }
 .precip-icon { font-size: 0.95vw; }
