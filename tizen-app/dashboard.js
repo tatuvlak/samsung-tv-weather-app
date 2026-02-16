@@ -439,19 +439,13 @@ function renderDashboard(deviceStatus) {
 }
 
 // Helper to fetch and render dashboard
-async function fetchAndRenderDashboard(accessToken, deviceId) {
+async function fetchAndRenderDashboard(deviceId) {
   console.log('[DASHBOARD] fetchAndRenderDashboard called for device:', deviceId);
-  if (!accessToken) {
-    console.error('[DASHBOARD] Missing access token!');
-    alert('Missing access token');
-    return;
-  }
 
   try {
-    // Fetch device status
-    const statusResp = await fetch(
-      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`,
-      { headers: { Authorization: 'Bearer ' + accessToken } }
+    // Fetch device status using fetchWithAuth for automatic token refresh and retry
+    const statusResp = await window.OAuth.fetchWithAuth(
+      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`
     );
     if (!statusResp.ok) throw new Error(`HTTP ${statusResp.status}`);
     const statusData = await statusResp.json();
