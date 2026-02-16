@@ -273,8 +273,9 @@ async function refreshAccessToken() {
     return tokens;
   } catch (err) {
     console.error('Token refresh error:', err);
-    // Clear tokens on refresh failure - user needs to re-authorize
-    clearTokens();
+    // Don't clear tokens on network/temporary errors
+    // Tokens are only cleared on authentication errors (401/400) handled above
+    // This preserves the refresh_token for retry attempts
     throw err;
   }
 }
@@ -310,6 +311,51 @@ async function getValidAccessToken() {
   const ageMinutes = ((Date.now() - tokenData.timestamp) / 1000 / 60).toFixed(1);
   console.log(`Using existing valid token (age: ${ageMinutes} minutes)`);
   return tokenData.access_token;
+}
+
+// Make authenticated API call with automatic retry on 401
+async function fetchWithAuth(url, options = {}) {
+  // Get valid access token (will refresh if needed)
+  let accessToken = await getValidAccessToken();
+  
+  // Set authorization header
+  const headers = {
+    ...options.headers,
+    'Authorization': `Bearer ${accessToken}`
+  };
+  
+  // Make first attempt
+  let response = await fetch(url, {
+    ...options,
+    headers
+  });
+  
+  // If unauthorized, try refreshing token and retry once
+  if (response.status === 401) {
+    console.log('Received 401 error, attempting token refresh and retry');
+    
+    try {
+      // Force token refresh
+      const newTokens = await refreshAccessToken();
+      accessToken = newTokens.access_token;
+      
+      // Update headers with new token
+      headers['Authorization'] = `Bearer ${accessToken}`;
+      
+      // Retry the request
+      response = await fetch(url, {
+        ...options,
+        headers
+      });
+      
+      console.log('Retry after token refresh completed, status:', response.status);
+    } catch (refreshErr) {
+      console.error('Token refresh failed during retry:', refreshErr);
+      throw new Error('NOT_AUTHORIZED');
+    }
+  }
+  
+  return response;
 }
 
 // Check if user is authorized
@@ -512,6 +558,7 @@ window.OAuth = {
   exchangeCodeForTokens,
   refreshAccessToken,
   getValidAccessToken,
+  fetchWithAuth,
   isAuthorized,
   clearTokens,
   displayAuthorizationPrompt,

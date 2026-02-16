@@ -17,7 +17,7 @@
   <access origin="*" subdomains="true"/>
   <tizen:content-security-policy>
     default-src 'self';
-    connect-src 'self' https://api.smartthings.com https://*.smartthings.com;
+    connect-src 'self' https://api.smartthings.com https://*.smartthings.com https://api.open-meteo.com;
     script-src 'self' 'unsafe-inline' 'unsafe-eval';
     style-src 'self' 'unsafe-inline';
   </tizen:content-security-policy>

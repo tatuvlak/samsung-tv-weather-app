@@ -78,12 +78,26 @@ function setForecastLocations(locations) {
 }
 
 async function fetchOpenMeteoForecast(lat, lon) {
-  // Fetch next 40h hourly forecast for temperature, apparent temperature, precipitation,
-  // precipitation probability, windspeed, and weathercode so we can render richer UI
+  // Robust fetch with no-cache and a single retry. Returns parsed JSON or null on failure.
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,windspeed_10m,weathercode&forecast_hours=40&timezone=auto`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('Forecast fetch failed');
-  return resp.json();
+
+  const tryFetch = async () => {
+    try {
+      const resp = await fetch(url, { cache: 'no-store' });
+      if (!resp.ok) return null;
+      const j = await resp.json();
+      // basic validation
+      if (!j || !j.hourly || !Array.isArray(j.hourly.time)) return null;
+      return j;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const first = await tryFetch();
+  if (first) return first;
+  // one quick retry for transient network issues
+  return await tryFetch();
 }
 function renderForecastPanel(container, forecasts, locations) {
   // Render a horizontal grid (master table) so all locations align by hour
@@ -265,11 +279,13 @@ function getPressureColor(pressure) {
 }
 
 function renderDashboard(deviceStatus) {
+  console.log('[RENDER] renderDashboard called with status:', deviceStatus);
   const container = document.getElementById('dashboard-container');
   if (!container) {
-    console.error('Dashboard container not found');
+    console.error('[RENDER] Dashboard container not found!');
     return;
   }
+  console.log('[RENDER] Container found, rendering HTML...');
 
   // Extract weather metrics from device status
   const temp = parseFloat(deviceStatus.temperature?.value || 0);
@@ -372,18 +388,45 @@ function renderDashboard(deviceStatus) {
   container.innerHTML = html;
 
   // --- Forecast Integration ---
-  (async () => {
-    const locations = getForecastLocations();
-    // Fetch per-location and allow individual failures without aborting all
-    const settled = await Promise.allSettled(locations.map(loc => fetchOpenMeteoForecast(loc.latitude, loc.longitude)));
-    const forecasts = settled.map((s, i) => {
-      if (s.status === 'fulfilled') return s.value;
-      console.warn('Forecast fetch failed for', locations[i]?.name, s.reason);
-      return null;
-    });
-    const forecastPanel = document.getElementById('forecast-panel');
-    if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
-  })();
+  // Use requestAnimationFrame + setTimeout to ensure DOM is fully settled before fetching
+  const runForecastFetch = async () => {
+    try {
+      console.log('[FORECAST] Starting forecast fetch');
+      const locations = getForecastLocations();
+      console.log('[FORECAST] Locations:', locations);
+      
+      const forecasts = [];
+      for (let i = 0; i < locations.length; i++) {
+        const loc = locations[i];
+        console.log('[FORECAST] Fetching for:', loc.name);
+        const res = await fetchOpenMeteoForecast(loc.latitude, loc.longitude);
+        
+        if (res && res.hourly) {
+          console.log('[FORECAST] Got data for:', loc.name);
+          forecasts.push(res);
+        } else {
+          console.warn('[FORECAST] No data for:', loc?.name);
+          forecasts.push(null);
+        }
+      }
+      
+      const forecastPanel = document.getElementById('forecast-panel');
+      console.log('[FORECAST] Panel element:', forecastPanel ? 'found' : 'NOT FOUND');
+      if (forecastPanel) {
+        renderForecastPanel(forecastPanel, forecasts, locations);
+        console.log('[FORECAST] Render complete');
+      }
+    } catch (e) {
+      console.error('[FORECAST] Integration failed:', e);
+    }
+  };
+
+  // Schedule forecast fetch after DOM is fully rendered
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      runForecastFetch();
+    }, 100);
+  });
 
   // Update current time and last-updated timestamp every second
   function updateCurrentTime() {
@@ -396,17 +439,13 @@ function renderDashboard(deviceStatus) {
 }
 
 // Helper to fetch and render dashboard
-async function fetchAndRenderDashboard(accessToken, deviceId) {
-  if (!accessToken) {
-    alert('Missing access token');
-    return;
-  }
+async function fetchAndRenderDashboard(deviceId) {
+  console.log('[DASHBOARD] fetchAndRenderDashboard called for device:', deviceId);
 
   try {
-    // Fetch device status
-    const statusResp = await fetch(
-      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`,
-      { headers: { Authorization: 'Bearer ' + accessToken } }
+    // Fetch device status using fetchWithAuth for automatic token refresh and retry
+    const statusResp = await window.OAuth.fetchWithAuth(
+      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`
     );
     if (!statusResp.ok) throw new Error(`HTTP ${statusResp.status}`);
     const statusData = await statusResp.json();
@@ -455,10 +494,12 @@ async function fetchAndRenderDashboard(accessToken, deviceId) {
       pressure: transformed.pressure || null // null indicates not available
     };
 
+    console.log('[DASHBOARD] About to call renderDashboard with data:', displayData);
     renderDashboard(displayData);
+    console.log('[DASHBOARD] renderDashboard returned');
     return displayData;
   } catch (err) {
-    console.error('Error fetching/rendering dashboard:', err);
+    console.error('[DASHBOARD] Error fetching/rendering dashboard:', err);
     alert('Failed to render dashboard: ' + err.message);
   }
 }

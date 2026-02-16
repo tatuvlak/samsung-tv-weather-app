@@ -9,6 +9,8 @@
   </ui-application>
   <privileges>
     <privilege>http://tizen.org/privilege/internet</privilege>
+    <privilege>http://tizen.org/privilege/network.get</privilege>
+    <privilege>http://developer.samsung.com/privilege/network.public</privilege>
   </privileges>
   <feature name="http://tizen.org/feature/screen.size.all"/>
 </manifest>

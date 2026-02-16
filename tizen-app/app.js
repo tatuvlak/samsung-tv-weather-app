@@ -53,13 +53,9 @@ function showRetryAuthorizationButton() {
 
 async function listWeatherDevices(){
   try{
-    // Get valid OAuth access token (with automatic refresh)
-    const accessToken = await window.OAuth.getValidAccessToken();
-    
+    // Use fetchWithAuth for automatic token refresh and retry on 401
     status.textContent = 'Discovering devices...';
-    const resp = await fetch('https://api.smartthings.com/v1/devices', {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    });
+    const resp = await window.OAuth.fetchWithAuth('https://api.smartthings.com/v1/devices');
     if(!resp.ok) {
       let errBody = '';
       try { errBody = await resp.text(); } catch (e) { /* ignore */ }
@@ -102,9 +98,8 @@ async function refreshDashboard(){
   }
 
   try{
-    const accessToken = await window.OAuth.getValidAccessToken();
     status.textContent = 'Refreshing...';
-    await fetchAndRenderDashboard(accessToken, selectedDeviceId);
+    await fetchAndRenderDashboard(selectedDeviceId);
     // update the Last updated timestamp to mark dashboard refresh
     try {
       const lastEl = document.getElementById('last-updated');
