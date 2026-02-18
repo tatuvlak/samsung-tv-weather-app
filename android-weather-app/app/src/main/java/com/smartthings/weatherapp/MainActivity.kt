@@ -423,6 +423,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     // Helper function: Get AQI category with message and color
+    // Matches TV app's getAQICategory function from dashboard.js
+    // Matter specification enum mapping: 0=unknown, 1=good, 2=moderate, 3=slightly unhealthy,
+    // 4=unhealthy, 5=very unhealthy, 6=hazardous
     private fun getAQICategory(aqiValue: String): AQICategory {
         // Handle numeric enum values (Matter specification: 0-6)
         val numericValue = aqiValue.toIntOrNull()
@@ -439,8 +442,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Handle string values
-        return when (aqiValue.lowercase()) {
+        // Handle string values - normalize to lowercase and trim
+        val normalizedKey = aqiValue.lowercase().replace(Regex("\\s+"), " ").trim()
+        return when (normalizedKey) {
             "good" -> AQICategory("Good", "Air quality is good", "#28a745", "😊")
             "moderate", "fair" -> AQICategory("Moderate", "Acceptable air quality", "#ffc107", "🙂")
             "slightly unhealthy", "slightlyunhealthy" -> AQICategory("Slightly Unhealthy", "Sensitive groups should limit outdoor activity", "#fd7e14", "😕")

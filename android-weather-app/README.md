@@ -4,11 +4,23 @@ An Android application that displays weather information from Samsung SmartThing
 
 ## Features
 
-- Display current weather information
-- Connect to SmartThings API
-- Support for Samsung TV weather ambient apps
-- Real-time weather updates
-- Clean Material Design UI
+- **Air Quality Monitoring**: Display PM1, PM2.5, PM10, and AQI with color-coded indicators and emoji icons
+- **Temperature & Clothing Recommendations**: Smart clothing suggestions based on current temperature
+- **Humidity & Atmospheric Pressure**: Track indoor/outdoor humidity and barometric pressure
+- **OAuth 2.0 with Token Refresh**: Seamless authentication with automatic token refresh (no re-auth for 60 days)
+- **Pull-to-Refresh**: Swipe down to manually refresh weather data
+- **Auto-Refresh**: Automatic updates every 60 seconds
+- **Material Design UI**: Clean, modern UI optimized for mobile screens
+
+## Recent Updates (2026-02-18)
+
+✅ **Updated to match TV app version 1.0**:
+- Fixed OAuth token refresh to preserve refresh_token (matches `OAUTH_REFRESH_FIX.md`)
+- Updated AQI icons to use proper emoji display (😊, 🙂, 😕, ☹️, 🤢, ☠️)
+- Enhanced logging for better debugging
+- Improved string normalization for AQI values
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
 
 ## Requirements
 
