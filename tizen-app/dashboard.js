@@ -21,7 +21,7 @@ const TEMP_BANDS = {
 const AQI_CATEGORIES = {
   // Numeric enum values (from Matter specification)
   0: { color: '#cccccc', icon: '❓', message: 'Unknown', label: 'Unknown' },
-  1: { color: '#28a745', icon: '�', message: 'Air quality is good', label: 'Good' },
+  1: { color: '#28a745', icon: '😊', message: 'Air quality is good', label: 'Good' },
   2: { color: '#ffc107', icon: '🙂', message: 'Acceptable air quality', label: 'Moderate' },
   3: { color: '#fd7e14', icon: '😕', message: 'Sensitive groups should limit outdoor activity', label: 'Slightly Unhealthy' },
   4: { color: '#dc3545', icon: '☹️', message: 'WEAR MASK - Unhealthy air', label: 'Unhealthy' },
