@@ -213,6 +213,7 @@ class OAuthManager(private val context: Context) {
     
     /**
      * Refresh access token using refresh token
+     * Matches TV app's refreshAccessToken() from oauth.js
      */
     private suspend fun refreshAccessToken(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -229,7 +230,7 @@ class OAuthManager(private val context: Context) {
                 0.0
             }
             
-            println("DEBUG: Attempting token refresh")
+            println("Attempting token refresh")
             println("DEBUG: has_refresh_token=true, token_age_hours=%.2f".format(tokenAgeHours))
             
             val bodyBuilder = FormBody.Builder()
@@ -255,7 +256,7 @@ class OAuthManager(private val context: Context) {
                 .post(bodyBuilder.build())
                 .build()
             
-            println("DEBUG: Refreshing access token...")
+            println("Refreshing access token...")
             val response = client.newCall(request).execute()
             
             if (!response.isSuccessful) {
@@ -279,17 +280,18 @@ class OAuthManager(private val context: Context) {
             val newRefreshToken = json.optString("refresh_token", "")
             val expiresIn = json.optInt("expires_in", 86400)
             
-            println("DEBUG: Refresh response received")
+            println("Refresh response received")
             println("DEBUG: has_access_token=${newAccessToken.isNotEmpty()}, has_new_refresh_token=${newRefreshToken.isNotEmpty()}, expires_in=$expiresIn")
             
             // Save tokens (will preserve old refresh_token if new one not provided)
+            // SmartThings typically doesn't return refresh_token on refresh flow
             saveTokens(
                 accessToken = newAccessToken,
                 refreshToken = newRefreshToken,
                 expiresIn = expiresIn
             )
             
-            println("DEBUG: Token refreshed successfully")
+            println("Token refreshed successfully")
             true
         } catch (e: Exception) {
             println("ERROR: Token refresh exception: ${e.message}")
@@ -369,14 +371,16 @@ class OAuthManager(private val context: Context) {
     
     /**
      * Save OAuth tokens to shared preferences
-     * Preserves existing refresh_token if not provided in response
+     * Preserves existing refresh_token if not provided in response (matches TV app's saveTokens)
+     * See OAUTH_REFRESH_FIX.md for details on the refresh token preservation fix
      */
     private fun saveTokens(accessToken: String, refreshToken: String, expiresIn: Int) {
+        // Get existing tokens to preserve refresh_token if not returned
+        val existingRefreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
+        
         // Preserve existing refresh_token if new one not provided
         // SmartThings typically doesn't return refresh_token on refresh flow
-        val existingRefreshToken = prefs.getString(KEY_REFRESH_TOKEN, null)
         val finalRefreshToken = if (refreshToken.isEmpty() && existingRefreshToken != null) {
-            println("DEBUG: Preserving existing refresh_token (not returned in response)")
             existingRefreshToken
         } else {
             refreshToken
