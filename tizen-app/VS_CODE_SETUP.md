@@ -52,9 +52,9 @@ cd path/to/samsung-tv-weather-app
 code .
 ```
 
-Step 2: Update config.js with SmartThings PAT
+Step 2: Update config.js with the hub address and READ_TOKEN
 - Open tizen-app/config.js
-- Add your PAT token
+- Add the hub address and READ_TOKEN
 
 Step 3: Build the Web Package
 ```powershell

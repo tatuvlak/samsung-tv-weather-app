@@ -288,7 +288,24 @@ function renderDashboard(deviceStatus) {
   const pressureColor = pressure ? getPressureColor(pressure) : '#666';
 
   const season = getSeasonName();
-  const lastUpdatedTime = new Date().toLocaleTimeString();
+
+  // Show the READING's timestamp, not the time we fetched it. Those agree only
+  // while the sensor is healthy; when it stops posting they diverge, and the
+  // fetch time would report a dead sensor as current. The hub tells us both
+  // the age and whether it considers the reading stale, so say so.
+  const lastEl = document.getElementById('last-updated');
+  if (lastEl) {
+    if (deviceStatus.recordedAt) {
+      const t = new Date(deviceStatus.recordedAt).toLocaleTimeString();
+      lastEl.textContent = deviceStatus.stale
+        ? 'Reading from ' + t + ' \u2014 STALE, ' + formatAge(deviceStatus.ageSeconds) + ' old'
+        : 'Reading from ' + t;
+      lastEl.style.color = deviceStatus.stale ? '#ff9800' : '';
+    } else {
+      lastEl.textContent = 'No reading';
+      lastEl.style.color = '#ff9800';
+    }
+  }
 
   const html = `
     <div class="dashboard">
@@ -385,80 +402,72 @@ function renderDashboard(deviceStatus) {
     if (forecastPanel) renderForecastPanel(forecastPanel, forecasts, locations);
   })();
 
-  // Update current time and last-updated timestamp every second
-  function updateCurrentTime() {
-    const currentTimeEl = document.getElementById('current-time');
-    if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
-  }
-  // Note: `last-updated` is updated by the caller (app.js) when a dashboard refresh completes.
+  // The wall clock ticks every second. renderDashboard runs on every refresh,
+  // so starting an interval here unguarded added one per minute and left the
+  // old ones running — on a TV that stays up for days that is hundreds of
+  // timers. Start it once.
   updateCurrentTime();
-  setInterval(updateCurrentTime, 1000);
+  if (!window.__clockInterval) {
+    window.__clockInterval = setInterval(updateCurrentTime, 1000);
+  }
 }
 
-// Helper to fetch and render dashboard
-async function fetchAndRenderDashboard(accessToken, deviceId) {
-  if (!accessToken) {
-    alert('Missing access token');
-    return;
-  }
+function updateCurrentTime() {
+  const currentTimeEl = document.getElementById('current-time');
+  if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
+}
 
-  try {
-    // Fetch device status
-    const statusResp = await fetch(
-      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`,
-      { headers: { Authorization: 'Bearer ' + accessToken } }
-    );
-    if (!statusResp.ok) throw new Error(`HTTP ${statusResp.status}`);
-    const statusData = await statusResp.json();
+function formatAge(seconds) {
+  if (typeof seconds !== 'number' || !isFinite(seconds)) return 'unknown';
+  if (seconds < 90) return Math.round(seconds) + 's';
+  if (seconds < 5400) return Math.round(seconds / 60) + ' min';
+  if (seconds < 172800) return Math.round(seconds / 3600) + ' h';
+  return Math.round(seconds / 86400) + ' days';
+}
 
-    console.log('Raw SmartThings response:', JSON.stringify(statusData, null, 2));
+// Fetch the latest reading from the local hub and render it.
+//
+// This used to call api.smartthings.com to list devices, pick one, read its
+// component status and unpick SmartThings' capability envelopes. The hub
+// serves the reading the station posted, in the shape the station sent it, so
+// none of that is needed — and none of it costs a subscription.
+async function fetchAndRenderDashboard() {
+  const hub = (window.APP_CONFIG && window.APP_CONFIG.hub) || {};
+  if (!hub.baseUrl) throw new Error('APP_CONFIG.hub.baseUrl is not set - copy config.example.js to config.js');
 
-    // Store in global for debug display
-    window.lastRawResponse = statusData;
+  const headers = {};
+  if (hub.readToken) headers.Authorization = 'Bearer ' + hub.readToken;
 
-    // Transform SmartThings status format to our expected format
-    // SmartThings returns: { "temperatureMeasurement": { "temperature": { "value": -2, ... } }, ... }
-    const transformed = {};
-    
-    if (statusData.temperatureMeasurement && statusData.temperatureMeasurement.temperature) {
-      transformed.temperature = { value: statusData.temperatureMeasurement.temperature.value };
-    }
-    if (statusData.relativeHumidityMeasurement && statusData.relativeHumidityMeasurement.humidity) {
-      transformed.humidity = { value: statusData.relativeHumidityMeasurement.humidity.value };
-    }
-    if (statusData.fineDustSensor && statusData.fineDustSensor.fineDustLevel) {
-      transformed.pm25 = { value: statusData.fineDustSensor.fineDustLevel.value };
-    }
-    if (statusData.veryFineDustSensor && statusData.veryFineDustSensor.veryFineDustLevel) {
-      transformed.pm1 = { value: statusData.veryFineDustSensor.veryFineDustLevel.value };
-    }
-    if (statusData.dustSensor && statusData.dustSensor.dustLevel) {
-      transformed.pm10 = { value: statusData.dustSensor.dustLevel.value };
-    }
-    if (statusData.airQualityHealthConcern && statusData.airQualityHealthConcern.airQualityHealthConcern) {
-      transformed.aqi = { value: statusData.airQualityHealthConcern.airQualityHealthConcern.value };
-    }
-    if (statusData.atmosphericPressureMeasurement && statusData.atmosphericPressureMeasurement.atmosphericPressure) {
-      transformed.pressure = { value: statusData.atmosphericPressureMeasurement.atmosphericPressure.value };
-    }
+  const url = String(hub.baseUrl).replace(/\/+$/, '') + '/api/weather';
+  const resp = await fetch(url, { headers: headers });
 
-    console.log('Transformed data:', transformed);
+  // Distinguish the cases that need different action from the viewer. A 404
+  // means the hub is up and simply has nothing yet, which is a very different
+  // problem from the hub being unreachable.
+  if (resp.status === 404) throw new Error('NO_READINGS');
+  if (resp.status === 401 || resp.status === 403) throw new Error('NOT_AUTHORIZED');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-    // Provide defaults for missing data to prevent errors
-    const displayData = {
-      temperature: transformed.temperature || { value: 0 },
-      humidity: transformed.humidity || { value: 0 },
-      pm1: transformed.pm1 || { value: 0 },
-      pm25: transformed.pm25 || { value: 0 },
-      pm10: transformed.pm10 || { value: 0 },
-      aqi: transformed.aqi || { value: 'N/A' },
-      pressure: transformed.pressure || null // null indicates not available
-    };
+  const data = await resp.json();
+  window.lastRawResponse = data;
 
-    renderDashboard(displayData);
-    return displayData;
-  } catch (err) {
-    console.error('Error fetching/rendering dashboard:', err);
-    alert('Failed to render dashboard: ' + err.message);
-  }
+  // The hub omits a field the sensor failed to measure rather than sending a
+  // zero, so absence is meaningful here. Pressure already renders as "not
+  // available" when null; the others still fall back to 0 in renderDashboard,
+  // which is a separate thing to fix.
+  const displayData = {
+    temperature: { value: data.temperature_c },
+    humidity: { value: data.humidity_pct },
+    pm1: { value: data.pm1 },
+    pm25: { value: data.pm25 },
+    pm10: { value: data.pm10 },
+    aqi: { value: data.aqi !== undefined ? data.aqi : 'N/A' },
+    pressure: (typeof data.pressure_hpa === 'number') ? { value: data.pressure_hpa } : null,
+    recordedAt: data.recorded_at,
+    ageSeconds: data.age_seconds,
+    stale: data.stale === true
+  };
+
+  renderDashboard(displayData);
+  return displayData;
 }
