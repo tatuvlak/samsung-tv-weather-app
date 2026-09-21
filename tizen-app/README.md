@@ -210,6 +210,11 @@ hub, and asserts every field lands where it should — including the partial
 reading case, where the hub omits what the sensor failed to measure, and the
 error cases the status line distinguishes.
 
+It also renders a full reading and an empty one and checks two things: that a
+missing value shows `N/A` rather than a convincing `0.0`, and that the panels,
+metric boxes and rows are identical in both — so a gap never moves anything on
+screen.
+
 Nothing enforces the field names the app and the hub agree on. A rename on
 either side would show up on the television as zeroes rather than as an error,
 which is exactly the kind of failure nobody notices for a fortnight.
