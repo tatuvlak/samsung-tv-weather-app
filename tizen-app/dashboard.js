@@ -325,6 +325,8 @@ function renderDashboard(deviceStatus) {
   const humidityColor = colorOr(humidity, getHumidityColor);
   const pressureColor = pressure === null ? MISSING_BORDER : getPressureColor(pressure);
 
+  const season = getSeasonName();
+
   // Show the READING's timestamp, not the time we fetched it. Those agree only
   // while the sensor is healthy; when it stops posting they diverge, and the
   // fetch time would report a dead sensor as current. The hub tells us both
@@ -342,9 +344,6 @@ function renderDashboard(deviceStatus) {
       lastEl.style.color = '#ff9800';
     }
   }
-
-  const season = getSeasonName();
-  const lastUpdatedTime = new Date().toLocaleTimeString();
 
   const html = `
     <div class="dashboard">
