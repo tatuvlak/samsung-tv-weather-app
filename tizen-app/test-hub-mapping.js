@@ -28,7 +28,9 @@ ctx.APP_CONFIG = { hub: { baseUrl: "http://192.168.18.250:5000/", readToken: "ab
 
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync('dashboard.js','utf8'), ctx);
-// our renderDashboard stub must win over the file's definition
+// Keep the real renderer aside; the mapping checks want a stub, the rendering
+// checks below want the real thing.
+const realRenderDashboard = ctx.renderDashboard;
 ctx.renderDashboard = d => captured.push(d);
 
 (async () => {
@@ -66,6 +68,68 @@ ctx.renderDashboard = d => captured.push(d);
     catch (e) { if (e.message !== want) fail.push(`${code}: got "${e.message}", want "${want}"`); }
   }
 
+  // ---- rendering: a gap must look like a gap, and must not move anything ----
+  //
+  // The layout guarantee is mechanical: renderDashboard emits the same tags in
+  // the same order whether or not the sensor reported, so only text and colour
+  // differ. Compare the tag sequences and they must be identical.
+  const rendered = {};
+  const panel = { innerHTML: '' };
+  ctx.document.getElementById = id => {
+    if (id === 'forecast-panel') return null;   // skip the forecast fetch
+    if (id === 'dashboard-container') return panel;
+    return { textContent: '', style: {} };
+  };
+  ctx.Promise = Promise;
+  // The forecast panel is skipped above; keep its fetch quiet.
+  ctx.fetch = async () => ({ ok: true, json: async () => ({ hourly: {} }) });
+
+  ctx.renderDashboard = realRenderDashboard;
+
+  const full = { temperature:{value:22.5}, humidity:{value:57.6}, pm1:{value:1}, pm25:{value:2},
+                 pm10:{value:3}, aqi:{value:1}, pressure:{value:987.7},
+                 recordedAt:'2026-09-21T16:12:03', ageSeconds:12, stale:false };
+  ctx.renderDashboard(full);
+  const htmlFull = panel.innerHTML;
+
+  const empty = { temperature:{value:undefined}, humidity:{value:undefined}, pm1:{value:undefined},
+                  pm25:{value:undefined}, pm10:{value:undefined}, aqi:{value:'N/A'}, pressure:null,
+                  recordedAt:'2026-09-21T16:12:03', ageSeconds:99999, stale:true };
+  ctx.renderDashboard(empty);
+  const htmlEmpty = panel.innerHTML;
+
+  const has = (h, t) => h.indexOf(t) !== -1;
+  if (!has(htmlFull, '22.5°C'))      fail.push('full: temperature not rendered');
+  if (!has(htmlFull, '2.0 \u00b5g/m\u00b3')) fail.push('full: pm25 not rendered');
+  if (!has(htmlFull, '987.7 hPa'))   fail.push('full: pressure not rendered');
+  if (has(htmlEmpty, '0.0 \u00b5g/m\u00b3'))  fail.push('empty: a missing PM rendered as 0.0');
+  if (has(htmlEmpty, '0.0\u00b0C'))  fail.push('empty: a missing temperature rendered as 0.0C');
+  if (has(htmlEmpty, '0%'))          fail.push('empty: a missing humidity rendered as 0%');
+  if (!has(htmlEmpty, 'N/A'))        fail.push('empty: no N/A shown');
+  if (!has(htmlEmpty, 'No temperature reading')) fail.push('empty: still recommending clothing');
+
+  // The layout guarantee: the boxes that define the grid are identical whether
+  // or not the sensor reported. Only text and colour inside them change.
+  //
+  // Deliberately not comparing every tag. The clothing <li> count varies with
+  // the temperature band (it differs between 5 C and 25 C too), and the
+  // pressure panel has always carried an extra <small> in its unavailable
+  // branch. Both predate this and neither moves a panel: the top three have
+  // min-height 12vw and the grid is align-items:start.
+  const count = (h, re) => (h.match(re) || []).length;
+  const boxes = h => [
+    'section=' + count(h, /<section/g),
+    'panel=' + count(h, /class="dashboard-panel/g),
+    'metric-display=' + count(h, /class="metric-display/g),
+    'metric-row=' + count(h, /class="metric-row"/g),
+    'pm-row=' + count(h, /class="pm-row"/g),
+    'temp-display=' + count(h, /class="temp-display"/g),
+  ].join(' ');
+  if (boxes(htmlFull) !== boxes(htmlEmpty)) {
+    fail.push('layout: panel structure differs\n    full : ' + boxes(htmlFull) +
+              '\n    empty: ' + boxes(htmlEmpty));
+  }
+
   if (fail.length) { console.log('FAIL\n  ' + fail.join('\n  ')); process.exit(1); }
-  console.log('all checks passed — field names match the hub payload');
+  console.log('all checks passed \u2014 field names match, gaps render as gaps, layout unchanged');
 })();

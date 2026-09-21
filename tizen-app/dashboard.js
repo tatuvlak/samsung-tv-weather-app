@@ -271,21 +271,43 @@ function renderDashboard(deviceStatus) {
     return;
   }
 
-  // Extract weather metrics from device status
-  const temp = parseFloat(deviceStatus.temperature?.value || 0);
-  const humidity = parseFloat(deviceStatus.humidity?.value || 0);
-  const pm1 = parseFloat(deviceStatus.pm1?.value || 0);
-  const pm25 = parseFloat(deviceStatus.pm25?.value || 0);
-  const pm10 = parseFloat(deviceStatus.pm10?.value || 0);
-  const aqiValue = deviceStatus.aqi?.value;
-  const pressure = deviceStatus.pressure ? parseFloat(deviceStatus.pressure.value) : null;
+  // A value the sensor failed to measure is ABSENT from the hub's payload, not
+  // zero. `|| 0` turned every gap into 0 C and pristine air — indistinguishable
+  // on screen from a real reading, which is exactly the failure the firmware
+  // was changed to avoid. Keep the distinction here: null means no reading.
+  const num = v => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return isFinite(n) ? n : null;
+  };
 
-  const tempBand = getTempClothing(temp);
+  const temp = num(deviceStatus.temperature?.value);
+  const humidity = num(deviceStatus.humidity?.value);
+  const pm1 = num(deviceStatus.pm1?.value);
+  const pm25 = num(deviceStatus.pm25?.value);
+  const pm10 = num(deviceStatus.pm10?.value);
+  const aqiValue = deviceStatus.aqi?.value;
+  const pressure = deviceStatus.pressure ? num(deviceStatus.pressure.value) : null;
+
+  // The greys the pressure panel has always used for its missing sensor, so a
+  // gap reads the same wherever it appears. Only text and colour change —
+  // every element stays put, so nothing moves on screen.
+  const MISSING_BORDER = '#666';
+  const MISSING_TEXT = '#999';
+
+  const fmt = (v, digits, unit) => v === null ? 'N/A' : v.toFixed(digits) + unit;
+  const colorOr = (v, fn) => v === null ? MISSING_TEXT : fn(v);
+
+  // Without this, a missing temperature fell through getTempClothing as 0 and
+  // the panel confidently recommended a winter coat.
+  const tempBand = temp === null
+    ? { color: MISSING_BORDER, clothing: ['No temperature reading'] }
+    : getTempClothing(temp);
   const aqiData = getAQICategory(aqiValue);
   const aqiLabel = aqiData.label || (aqiValue !== undefined && aqiValue !== null ? String(aqiValue) : 'N/A');
-  const pm25Color = getPMColor(pm25);
-  const humidityColor = getHumidityColor(humidity);
-  const pressureColor = pressure ? getPressureColor(pressure) : '#666';
+  const pm25Color = colorOr(pm25, getPMColor);
+  const humidityColor = colorOr(humidity, getHumidityColor);
+  const pressureColor = pressure === null ? MISSING_BORDER : getPressureColor(pressure);
 
   const season = getSeasonName();
 
@@ -320,15 +342,15 @@ function renderDashboard(deviceStatus) {
           <div class="pm-details">
             <div class="pm-row">
               <label>PM10</label>
-              <span class="pm-value" style="color: ${getPMColor(pm10)};">${pm10.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${colorOr(pm10, getPMColor)};">${fmt(pm10, 1, ' µg/m³')}</span>
             </div>
             <div class="pm-row">
               <label>PM2.5</label>
-              <span class="pm-value" style="color: ${pm25Color};">${pm25.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${pm25Color};">${fmt(pm25, 1, ' µg/m³')}</span>
             </div>
             <div class="pm-row">
               <label>PM1</label>
-              <span class="pm-value" style="color: ${getPMColor(pm1)};">${pm1.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${colorOr(pm1, getPMColor)};">${fmt(pm1, 1, ' µg/m³')}</span>
             </div>
           </div>
           <div class="alert-message" style="color: ${aqiData.color}; background: ${aqiData.color}22;">
@@ -340,7 +362,7 @@ function renderDashboard(deviceStatus) {
         <section class="dashboard-panel temperature-panel">
           <h2>Temperature & Clothing</h2>
           <div class="temp-display" style="border-color: ${tempBand.color};">
-            <span class="temp-value">${temp.toFixed(1)}°C</span>
+            <span class="temp-value"${temp === null ? ' style="color: ' + MISSING_TEXT + '"' : ''}>${fmt(temp, 1, '°C')}</span>
             <span class="temp-color-indicator" style="background: ${tempBand.color};"></span>
           </div>
           <div class="clothing-recommendation">
@@ -357,10 +379,10 @@ function renderDashboard(deviceStatus) {
           <div class="metric-row">
             <label>Humidity</label>
             <div class="metric-display" style="border-color: ${humidityColor};">
-              <span class="metric-value" style="color: ${humidityColor};">${humidity.toFixed(0)}%</span>
+              <span class="metric-value" style="color: ${humidityColor};">${fmt(humidity, 0, '%')}</span>
             </div>
           </div>
-          ${pressure && pressure !== null ? `
+          ${pressure !== null ? `
           <div class="metric-row">
             <label>Pressure</label>
             <div class="metric-display" style="border-color: ${pressureColor};">
