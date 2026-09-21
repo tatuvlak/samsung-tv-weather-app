@@ -22,7 +22,7 @@ Option 1: Using Tizen Studio (Recommended for TV)
    - Copy: index.html, style.css, app.js, dashboard.js, config.js
 
 3. Update config.js
-   - Edit config.js with your SmartThings PAT
+   - Edit config.js with the hub address and READ_TOKEN
 
 4. Build & Run
    - Right-click project → Build → Build With Active Profile
@@ -44,7 +44,7 @@ Option 2: Command-Line Deployment (Recommended)
 cd tizen-app
 
 # Step 1: Build the web application (exclude non-app files to avoid signature errors)
-tizen build-web -out ./build -e "*.md,oauth-callback.html,build-clean/*,.gitignore"
+tizen build-web -out ./build -e "*.md,build-clean/*,.gitignore"
 
 # Step 2: Package and sign the built application
 cd build
@@ -70,12 +70,11 @@ tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 
 **One-Line Deploy (after initial setup):**
 ```powershell
-cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,oauth-callback.html,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101; tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
+cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101; tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 **Important Notes:**
 - The `-e` exclude parameter is critical - it prevents unsigned files from causing installation failures
-- OAuth files (oauth.js) are automatically included and signed
 - Documentation files (*.md) must be excluded as they're not needed in the runtime package
 - Package must be signed with your certificate profile (replace `bartek` with your profile name)
 
@@ -109,7 +108,7 @@ Troubleshooting
 **Installation fails with "Invalid file reference. An unsigned file was found"**
 - Cause: Extra files (documentation, git files, etc.) included in package
 - Solution: Ensure you use the `-e` exclude parameter in build-web command
-- Files to exclude: `*.md,oauth-callback.html,build-clean/*,.gitignore`
+- Files to exclude: `*.md,build-clean/*,.gitignore`
 
 **If app doesn't appear on TV:**
 - Check SDB connection: `sdb devices`
@@ -117,11 +116,11 @@ Troubleshooting
 - Ensure developer mode is enabled on TV
 - Try restarting TV and reconnecting
 
-**If PAT/OAuth authentication fails:**
-- For OAuth: Verify Client ID is correct in config.js
-- For OAuth: Check redirect URI matches GitHub Pages URL
+**If the app cannot get data:**
+- Check `baseUrl` and `readToken` in config.js
+- Check the hub address is in the connect-src list in config.xml
 - Check TV has internet access
-- Confirm SmartThings account is active
+- Confirm the hub answers: `curl.exe http://<hub>:5000/health`
 
 **Cannot connect to TV:**
 ```powershell

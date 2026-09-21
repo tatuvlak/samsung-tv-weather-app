@@ -287,21 +287,61 @@ function renderDashboard(deviceStatus) {
   }
   console.log('[RENDER] Container found, rendering HTML...');
 
-  // Extract weather metrics from device status
-  const temp = parseFloat(deviceStatus.temperature?.value || 0);
-  const humidity = parseFloat(deviceStatus.humidity?.value || 0);
-  const pm1 = parseFloat(deviceStatus.pm1?.value || 0);
-  const pm25 = parseFloat(deviceStatus.pm25?.value || 0);
-  const pm10 = parseFloat(deviceStatus.pm10?.value || 0);
-  const aqiValue = deviceStatus.aqi?.value;
-  const pressure = deviceStatus.pressure ? parseFloat(deviceStatus.pressure.value) : null;
+  // A value the sensor failed to measure is ABSENT from the hub's payload, not
+  // zero. `|| 0` turned every gap into 0 C and pristine air — indistinguishable
+  // on screen from a real reading, which is exactly the failure the firmware
+  // was changed to avoid. Keep the distinction here: null means no reading.
+  const num = v => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return isFinite(n) ? n : null;
+  };
 
-  const tempBand = getTempClothing(temp);
+  const temp = num(deviceStatus.temperature?.value);
+  const humidity = num(deviceStatus.humidity?.value);
+  const pm1 = num(deviceStatus.pm1?.value);
+  const pm25 = num(deviceStatus.pm25?.value);
+  const pm10 = num(deviceStatus.pm10?.value);
+  const aqiValue = deviceStatus.aqi?.value;
+  const pressure = deviceStatus.pressure ? num(deviceStatus.pressure.value) : null;
+
+  // The greys the pressure panel has always used for its missing sensor, so a
+  // gap reads the same wherever it appears. Only text and colour change —
+  // every element stays put, so nothing moves on screen.
+  const MISSING_BORDER = '#666';
+  const MISSING_TEXT = '#999';
+
+  const fmt = (v, digits, unit) => v === null ? 'N/A' : v.toFixed(digits) + unit;
+  const colorOr = (v, fn) => v === null ? MISSING_TEXT : fn(v);
+
+  // Without this, a missing temperature fell through getTempClothing as 0 and
+  // the panel confidently recommended a winter coat.
+  const tempBand = temp === null
+    ? { color: MISSING_BORDER, clothing: ['No temperature reading'] }
+    : getTempClothing(temp);
   const aqiData = getAQICategory(aqiValue);
   const aqiLabel = aqiData.label || (aqiValue !== undefined && aqiValue !== null ? String(aqiValue) : 'N/A');
-  const pm25Color = getPMColor(pm25);
-  const humidityColor = getHumidityColor(humidity);
-  const pressureColor = pressure ? getPressureColor(pressure) : '#666';
+  const pm25Color = colorOr(pm25, getPMColor);
+  const humidityColor = colorOr(humidity, getHumidityColor);
+  const pressureColor = pressure === null ? MISSING_BORDER : getPressureColor(pressure);
+
+  // Show the READING's timestamp, not the time we fetched it. Those agree only
+  // while the sensor is healthy; when it stops posting they diverge, and the
+  // fetch time would report a dead sensor as current. The hub tells us both
+  // the age and whether it considers the reading stale, so say so.
+  const lastEl = document.getElementById('last-updated');
+  if (lastEl) {
+    if (deviceStatus.recordedAt) {
+      const t = new Date(deviceStatus.recordedAt).toLocaleTimeString();
+      lastEl.textContent = deviceStatus.stale
+        ? 'Reading from ' + t + ' \u2014 STALE, ' + formatAge(deviceStatus.ageSeconds) + ' old'
+        : 'Reading from ' + t;
+      lastEl.style.color = deviceStatus.stale ? '#ff9800' : '';
+    } else {
+      lastEl.textContent = 'No reading';
+      lastEl.style.color = '#ff9800';
+    }
+  }
 
   const season = getSeasonName();
   const lastUpdatedTime = new Date().toLocaleTimeString();
@@ -319,15 +359,15 @@ function renderDashboard(deviceStatus) {
           <div class="pm-details">
             <div class="pm-row">
               <label>PM10</label>
-              <span class="pm-value" style="color: ${getPMColor(pm10)};">${pm10.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${colorOr(pm10, getPMColor)};">${fmt(pm10, 1, ' µg/m³')}</span>
             </div>
             <div class="pm-row">
               <label>PM2.5</label>
-              <span class="pm-value" style="color: ${pm25Color};">${pm25.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${pm25Color};">${fmt(pm25, 1, ' µg/m³')}</span>
             </div>
             <div class="pm-row">
               <label>PM1</label>
-              <span class="pm-value" style="color: ${getPMColor(pm1)};">${pm1.toFixed(1)} µg/m³</span>
+              <span class="pm-value" style="color: ${colorOr(pm1, getPMColor)};">${fmt(pm1, 1, ' µg/m³')}</span>
             </div>
           </div>
           <div class="alert-message" style="color: ${aqiData.color}; background: ${aqiData.color}22;">
@@ -339,7 +379,7 @@ function renderDashboard(deviceStatus) {
         <section class="dashboard-panel temperature-panel">
           <h2>Temperature & Clothing</h2>
           <div class="temp-display" style="border-color: ${tempBand.color};">
-            <span class="temp-value">${temp.toFixed(1)}°C</span>
+            <span class="temp-value"${temp === null ? ' style="color: ' + MISSING_TEXT + '"' : ''}>${fmt(temp, 1, '°C')}</span>
             <span class="temp-color-indicator" style="background: ${tempBand.color};"></span>
           </div>
           <div class="clothing-recommendation">
@@ -356,10 +396,10 @@ function renderDashboard(deviceStatus) {
           <div class="metric-row">
             <label>Humidity</label>
             <div class="metric-display" style="border-color: ${humidityColor};">
-              <span class="metric-value" style="color: ${humidityColor};">${humidity.toFixed(0)}%</span>
+              <span class="metric-value" style="color: ${humidityColor};">${fmt(humidity, 0, '%')}</span>
             </div>
           </div>
-          ${pressure && pressure !== null ? `
+          ${pressure !== null ? `
           <div class="metric-row">
             <label>Pressure</label>
             <div class="metric-display" style="border-color: ${pressureColor};">
@@ -428,78 +468,72 @@ function renderDashboard(deviceStatus) {
     }, 100);
   });
 
-  // Update current time and last-updated timestamp every second
-  function updateCurrentTime() {
-    const currentTimeEl = document.getElementById('current-time');
-    if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
-  }
-  // Note: `last-updated` is updated by the caller (app.js) when a dashboard refresh completes.
+  // The wall clock ticks every second. renderDashboard runs on every refresh,
+  // so starting an interval here unguarded added one per minute and left the
+  // old ones running — on a TV that stays up for days that is hundreds of
+  // timers. Start it once.
   updateCurrentTime();
-  setInterval(updateCurrentTime, 1000);
+  if (!window.__clockInterval) {
+    window.__clockInterval = setInterval(updateCurrentTime, 1000);
+  }
 }
 
-// Helper to fetch and render dashboard
-async function fetchAndRenderDashboard(deviceId) {
-  console.log('[DASHBOARD] fetchAndRenderDashboard called for device:', deviceId);
+function updateCurrentTime() {
+  const currentTimeEl = document.getElementById('current-time');
+  if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
+}
 
-  try {
-    // Fetch device status using fetchWithAuth for automatic token refresh and retry
-    const statusResp = await window.OAuth.fetchWithAuth(
-      `https://api.smartthings.com/v1/devices/${encodeURIComponent(deviceId)}/components/main/status`
-    );
-    if (!statusResp.ok) throw new Error(`HTTP ${statusResp.status}`);
-    const statusData = await statusResp.json();
+function formatAge(seconds) {
+  if (typeof seconds !== 'number' || !isFinite(seconds)) return 'unknown';
+  if (seconds < 90) return Math.round(seconds) + 's';
+  if (seconds < 5400) return Math.round(seconds / 60) + ' min';
+  if (seconds < 172800) return Math.round(seconds / 3600) + ' h';
+  return Math.round(seconds / 86400) + ' days';
+}
 
-    console.log('Raw SmartThings response:', JSON.stringify(statusData, null, 2));
+// Fetch the latest reading from the local hub and render it.
+//
+// This used to call api.smartthings.com to list devices, pick one, read its
+// component status and unpick SmartThings' capability envelopes. The hub
+// serves the reading the station posted, in the shape the station sent it, so
+// none of that is needed — and none of it costs a subscription.
+async function fetchAndRenderDashboard() {
+  const hub = (window.APP_CONFIG && window.APP_CONFIG.hub) || {};
+  if (!hub.baseUrl) throw new Error('APP_CONFIG.hub.baseUrl is not set - copy config.example.js to config.js');
 
-    // Store in global for debug display
-    window.lastRawResponse = statusData;
+  const headers = {};
+  if (hub.readToken) headers.Authorization = 'Bearer ' + hub.readToken;
 
-    // Transform SmartThings status format to our expected format
-    // SmartThings returns: { "temperatureMeasurement": { "temperature": { "value": -2, ... } }, ... }
-    const transformed = {};
-    
-    if (statusData.temperatureMeasurement && statusData.temperatureMeasurement.temperature) {
-      transformed.temperature = { value: statusData.temperatureMeasurement.temperature.value };
-    }
-    if (statusData.relativeHumidityMeasurement && statusData.relativeHumidityMeasurement.humidity) {
-      transformed.humidity = { value: statusData.relativeHumidityMeasurement.humidity.value };
-    }
-    if (statusData.fineDustSensor && statusData.fineDustSensor.fineDustLevel) {
-      transformed.pm25 = { value: statusData.fineDustSensor.fineDustLevel.value };
-    }
-    if (statusData.veryFineDustSensor && statusData.veryFineDustSensor.veryFineDustLevel) {
-      transformed.pm1 = { value: statusData.veryFineDustSensor.veryFineDustLevel.value };
-    }
-    if (statusData.dustSensor && statusData.dustSensor.dustLevel) {
-      transformed.pm10 = { value: statusData.dustSensor.dustLevel.value };
-    }
-    if (statusData.airQualityHealthConcern && statusData.airQualityHealthConcern.airQualityHealthConcern) {
-      transformed.aqi = { value: statusData.airQualityHealthConcern.airQualityHealthConcern.value };
-    }
-    if (statusData.atmosphericPressureMeasurement && statusData.atmosphericPressureMeasurement.atmosphericPressure) {
-      transformed.pressure = { value: statusData.atmosphericPressureMeasurement.atmosphericPressure.value };
-    }
+  const url = String(hub.baseUrl).replace(/\/+$/, '') + '/api/weather';
+  console.log('[DASHBOARD] fetching', url);
+  const resp = await fetch(url, { headers: headers });
 
-    console.log('Transformed data:', transformed);
+  // Distinguish the cases that need different action from the viewer. A 404
+  // means the hub is up and simply has nothing yet, which is a very different
+  // problem from the hub being unreachable.
+  if (resp.status === 404) throw new Error('NO_READINGS');
+  if (resp.status === 401 || resp.status === 403) throw new Error('NOT_AUTHORIZED');
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-    // Provide defaults for missing data to prevent errors
-    const displayData = {
-      temperature: transformed.temperature || { value: 0 },
-      humidity: transformed.humidity || { value: 0 },
-      pm1: transformed.pm1 || { value: 0 },
-      pm25: transformed.pm25 || { value: 0 },
-      pm10: transformed.pm10 || { value: 0 },
-      aqi: transformed.aqi || { value: 'N/A' },
-      pressure: transformed.pressure || null // null indicates not available
-    };
+  const data = await resp.json();
+  window.lastRawResponse = data;
 
-    console.log('[DASHBOARD] About to call renderDashboard with data:', displayData);
-    renderDashboard(displayData);
-    console.log('[DASHBOARD] renderDashboard returned');
-    return displayData;
-  } catch (err) {
-    console.error('[DASHBOARD] Error fetching/rendering dashboard:', err);
-    alert('Failed to render dashboard: ' + err.message);
-  }
+  // The hub omits a field the sensor failed to measure rather than sending a
+  // zero, so absence is meaningful. renderDashboard keeps that distinction.
+  const displayData = {
+    temperature: { value: data.temperature_c },
+    humidity: { value: data.humidity_pct },
+    pm1: { value: data.pm1 },
+    pm25: { value: data.pm25 },
+    pm10: { value: data.pm10 },
+    aqi: { value: data.aqi !== undefined ? data.aqi : 'N/A' },
+    pressure: (typeof data.pressure_hpa === 'number') ? { value: data.pressure_hpa } : null,
+    recordedAt: data.recorded_at,
+    ageSeconds: data.age_seconds,
+    stale: data.stale === true
+  };
+
+  console.log('[DASHBOARD] rendering', displayData);
+  renderDashboard(displayData);
+  return displayData;
 }

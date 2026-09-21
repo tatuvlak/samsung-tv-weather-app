@@ -15,9 +15,14 @@
   <tizen:privilege name="http://tizen.org/privilege/internet"/>
   <tizen:privilege name="http://tizen.org/privilege/network.get"/>
   <access origin="*" subdomains="true"/>
+  <!-- connect-src must list every host the app fetches from: the weather hub
+       on the NAS, and Open-Meteo for the forecast panel. The hub's address is
+       duplicated in config.js - change it in both places, or the fetch is
+       blocked by policy rather than failing on the network, which looks
+       nothing like an address problem from the TV's console. -->
   <tizen:content-security-policy>
     default-src 'self';
-    connect-src 'self' https://api.smartthings.com https://*.smartthings.com https://api.open-meteo.com;
+    connect-src 'self' http://192.168.18.250:5000 https://api.open-meteo.com;
     script-src 'self' 'unsafe-inline' 'unsafe-eval';
     style-src 'self' 'unsafe-inline';
   </tizen:content-security-policy>

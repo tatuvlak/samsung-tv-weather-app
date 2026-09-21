@@ -1,126 +1,52 @@
-/* MVP: SmartThings Personal Access Token (PAT) approach
- - Simpler than OAuth2 PKCE for quick development
- - Discovers devices and filters for weather stations
- - Renders dashboard with real device data
-*/
+/* Reads the weather station from the local hub on the NAS.
+ *
+ * This used to authorise against SmartThings with OAuth, list every device on
+ * the account, filter for one that looked like a weather station, and poll its
+ * component status. All of that went through api.smartthings.com, which becomes
+ * a paid subscription in October 2026.
+ *
+ * Now there is one GET against a service on the LAN. No authorisation dance, no
+ * device discovery, no token refresh, and nothing to re-authorise when a
+ * refresh token expires while nobody is watching the television.
+ */
 
 const cfg = window.APP_CONFIG || {};
 const status = document.getElementById('status');
 
-let currentWeatherDevices = [];
-let selectedDeviceId = null;
-
-// Make lastRawResponse accessible for debugging
+// Kept for debugging from the TV's remote inspector.
 window.lastRawResponse = null;
 
-// OAuth Flow Initialization
-async function initiateOAuthFlow() {
+function describeError(err) {
+  switch (err && err.message) {
+    case 'NO_READINGS':
+      return 'The hub has no readings yet - is the weather station posting?';
+    case 'NOT_AUTHORIZED':
+      return 'The hub rejected the read token - check readToken in config.js';
+    default:
+      // A failed fetch to a LAN address is almost always the address itself or
+      // the content-security-policy in config.xml blocking it, and those look
+      // identical from here. Say both.
+      return 'Cannot reach the hub at ' + ((cfg.hub && cfg.hub.baseUrl) || '(not configured)') +
+             ' - check the address in config.js and the connect-src list in config.xml' +
+             (err && err.message ? ' (' + err.message + ')' : '');
+  }
+}
+
+async function refreshDashboard() {
   try {
-    status.textContent = 'Starting authorization...';
-    const authUrl = await window.OAuth.startAuthorizationFlow();
-    window.OAuth.displayAuthorizationPrompt(authUrl);
-  } catch (err) {
-    status.textContent = 'Authorization failed: ' + err.message;
-    console.error('OAuth initialization error:', err);
-    
-    // Show retry button on initialization failure
-    showRetryAuthorizationButton();
-  }
-}
-
-function showRetryAuthorizationButton() {
-  const container = document.getElementById('dashboard-container');
-  if (!container) return;
-  
-  const retryHtml = `
-    <div style="margin-top: 20px; text-align: center;">
-      <button id="retry-auth-init-btn" class="focusable" 
-              style="padding: 15px 30px; font-size: 18px; background: #0066aa; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-        🔄 Retry Authorization
-      </button>
-    </div>
-  `;
-  
-  container.insertAdjacentHTML('beforeend', retryHtml);
-  
-  const retryBtn = document.getElementById('retry-auth-init-btn');
-  if (retryBtn) {
-    retryBtn.addEventListener('click', async () => {
-      await window.OAuth.clearAndRetryAuthorization();
-    });
-  }
-}
-
-async function listWeatherDevices(){
-  try{
-    // Use fetchWithAuth for automatic token refresh and retry on 401
-    status.textContent = 'Discovering devices...';
-    const resp = await window.OAuth.fetchWithAuth('https://api.smartthings.com/v1/devices');
-    if(!resp.ok) {
-      let errBody = '';
-      try { errBody = await resp.text(); } catch (e) { /* ignore */ }
-      throw new Error(`HTTP ${resp.status} ${resp.statusText}${errBody ? `\n${errBody}` : ''}`);
-    }
-    const data = await resp.json();
-    
-    // Filter for weather-related devices (look for temperature/humidity capabilities)
-    currentWeatherDevices = (data.items||[]).filter(d => {
-      const capStr = JSON.stringify(d.components || []);
-      return capStr.includes('temperatureMeasurement') || 
-             capStr.includes('relativeHumidityMeasurement') ||
-             capStr.includes('pm25Measurement') ||
-             capStr.includes('airQuality');
-    });
-    
-    status.textContent = `Found ${currentWeatherDevices.length} weather device(s)`;
-
-    // Auto-populate device ID if only one device found
-    if (currentWeatherDevices.length === 1) {
-      selectedDeviceId = currentWeatherDevices[0].deviceId;
-      refreshDashboard();
-    } else if (currentWeatherDevices.length > 0) {
-      // Show list and let user select
-      console.log('Weather devices found:', currentWeatherDevices.map(d => ({ id: d.deviceId, label: d.label })));
-      // Auto-select first device
-      selectedDeviceId = currentWeatherDevices[0].deviceId;
-      refreshDashboard();
-    }
-  } catch(err){
-    status.textContent = 'Discovery failed: ' + err.message;
-    console.error('Discovery error:', err);
-  }
-}
-
-async function refreshDashboard(){
-  if(!selectedDeviceId){
-    status.textContent = 'Error: No device selected';
-    return;
-  }
-
-  try{
     status.textContent = 'Refreshing...';
-    await fetchAndRenderDashboard(selectedDeviceId);
-    // update the Last updated timestamp to mark dashboard refresh
-    try {
-      const lastEl = document.getElementById('last-updated');
-      if (lastEl) lastEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString();
-    } catch (e) { /* ignore */ }
-  } catch(err) {
-    if(err.message === 'NOT_AUTHORIZED'){
-      await initiateOAuthFlow();
-    } else {
-      status.textContent = 'Error: ' + err.message;
-    }
+    await fetchAndRenderDashboard();
+    status.textContent = '';
+  } catch (err) {
+    console.error('Refresh failed:', err);
+    status.textContent = describeError(err);
   }
 }
 
 // Wire UI - no buttons to wire, app is fully automated
 
-// Flag to disable auto-focus during OAuth
-let disableAutoFocus = false;
-
 function getFocusableControls() {
-  // Get all focusable elements (including OAuth screen controls)
+  // Every element the remote can land on.
   return Array.from(document.querySelectorAll('.focusable'));
 }
 
@@ -229,11 +155,11 @@ document.addEventListener('focusin', (e) => {
   }
 });
 
-// On load, check OAuth status and auto-discover devices
+// On load: show something, then keep it fresh.
 (async () => {
-  status.textContent = 'Initializing...';
-  
-  // Prevent TV from going to sleep
+  status.textContent = 'Loading...';
+
+  // Stop the TV blanking the screen - this app exists to be looked at.
   try {
     if (window.tizen && tizen.power) {
       tizen.power.request('SCREEN', 'SCREEN_NORMAL');
@@ -242,36 +168,12 @@ document.addEventListener('focusin', (e) => {
   } catch (e) {
     console.warn('Could not enable screen wake lock:', e);
   }
-  
-  // Check if user is authorized with OAuth
-  if (!window.OAuth.isAuthorized()) {
-    status.textContent = 'Not authorized';
-    await initiateOAuthFlow();
-    return; // Wait for user to complete authorization
-  }
-  
-  // Auto-discover devices on startup
-  try {
-    console.log('Starting device discovery...');
-    await listWeatherDevices();
-    console.log('Device discovery completed');
-  } catch (err) {
-    console.error('Device discovery error:', err);
-    if (err.message === 'NOT_AUTHORIZED') {
-      await initiateOAuthFlow();
-    } else {
-      status.textContent = 'Error: ' + err.message;
-    }
-  }
-  
-  // Auto-refresh dashboard every 60 seconds
-  setInterval(() => {
-    if (selectedDeviceId) {
-      console.log('Auto-refreshing dashboard...');
-      refreshDashboard();
-    }
-  }, 60000); // 60000ms = 1 minute
-  
+
+  await refreshDashboard();
+
+  const seconds = (cfg.hub && cfg.hub.refreshSeconds) || 60;
+  setInterval(refreshDashboard, seconds * 1000);
+
   // Ensure first control is focused for TV remote navigation
   setTimeout(() => focusByIndex(0), 100);
   if (document.body) {
