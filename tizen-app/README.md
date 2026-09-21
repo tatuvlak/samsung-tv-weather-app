@@ -1,6 +1,8 @@
 # TV Weather — Samsung Tizen TV App
 
-A Tizen web application that displays real-time weather data from Matter-based weather stations via SmartThings API. Features include temperature, humidity, PM2.5, and air quality monitoring with intuitive color-coded emoji indicators.
+A Tizen web application that displays readings from a home weather station, fetched from a local hub on the NAS. Temperature, humidity, pressure, PM1/2.5/10 and air quality, with colour-coded indicators, plus an Open-Meteo forecast panel.
+
+It makes no SmartThings API call. That API becomes a paid subscription in October 2026, and this app was one of the three things that depended on it. The station still reports over Matter, so its tile in the SmartThings app is unaffected — this app simply reads the same data from somewhere that stays free.
 
 ## Features
 
@@ -30,23 +32,37 @@ The app supports the complete Matter AirQualityEnum specification:
 1. **Samsung Tizen TV** (tested on Tizen 6.5, platform 4.0)
 2. **Tizen Studio** with CLI tools installed
 3. **Samsung Certificate** (author.p12 and distributor.p12)
-4. **SmartThings Personal Access Token** with device read permissions
-5. **Matter Weather Station** connected to SmartThings
+4. **The weather hub** running and reachable on the LAN (see the
+   `edge-driver-http-request` repository)
 
 ## Setup
 
-### 1. SmartThings Personal Access Token
+### 1. Point it at the hub
 
-1. Open SmartThings mobile app (iOS or Android)
-2. Go to **Settings** → **Personal Access Tokens**
-3. Create a new PAT with scopes: `r:devices:*` and `r:locations:*`
-4. Copy the generated token (shown only once)
-5. Edit `config.js` and paste your token:
-   ```javascript
-   window.APP_CONFIG = {
-     pat: "YOUR_PAT_HERE"
-   };
-   ```
+```bash
+cp config.example.js config.js
+```
+
+Then edit `config.js`:
+
+```javascript
+window.APP_CONFIG = {
+  hub: {
+    baseUrl: "http://192.168.18.250:5000",
+    readToken: "THE_READ_TOKEN_FROM_THE_HUB_ENV",
+    refreshSeconds: 60
+  }
+};
+```
+
+Use `READ_TOKEN`, never `INGEST_TOKEN` or `ACTION_TOKEN` — the read token can
+only read weather, and it ships inside the `.wgt` on the television, so treat
+it as published.
+
+**If the hub's address changes, change it in `config.xml` too**, in the
+`connect-src` list of the content-security-policy. Miss that and the fetch is
+blocked by policy rather than failing on the network, which looks nothing like
+an address problem from the TV's console.
 
 ### 2. Samsung Certificate Setup
 
@@ -113,15 +129,15 @@ tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 tizen-app/
 ├── build-clean/           # Clean build directory (used for packaging)
-│   ├── app.js            # SmartThings API integration
+│   ├── app.js            # Polling and remote navigation
 │   ├── dashboard.js      # Weather data visualization
 │   ├── index.html        # Application shell
 │   ├── style.css         # Styling
-│   ├── config.js         # SmartThings PAT configuration
+│   ├── config.js         # Hub address and read token (gitignored)
 │   ├── config.xml        # Tizen app configuration
 │   ├── tizen-manifest.xml # App manifest
 │   └── icon.svg          # App icon
-├── app.js                # Source: API integration
+├── app.js                # Source: polling and remote navigation
 ├── dashboard.js          # Source: Data visualization
 ├── index.html            # Source: HTML shell
 ├── style.css             # Source: Styling
@@ -168,14 +184,40 @@ Open http://localhost:8000 in a browser to test the UI and API integration.
 - Ensure old app version is uninstalled: `tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101`
 
 ### App Shows No Data
-- Verify SmartThings PAT in `config.js`
-- Check Matter weather station is online in SmartThings app
-- Open browser console (F12) to see API response logs
+
+The status line names the case, so read it before guessing:
+
+- *"Cannot reach the hub at ..."* — the address in `config.js`, **or** the
+  `connect-src` list in `config.xml` blocking it. These look identical from the
+  TV, so check both.
+- *"The hub rejected the read token"* — `readToken` does not match `READ_TOKEN`
+  on the hub.
+- *"The hub has no readings yet"* — the hub is fine and the weather station is
+  not posting. Look at the sensor, not at this app.
+- *"STALE"* next to the reading time — data is arriving but old. Again the
+  sensor, not this app.
+
+`window.lastRawResponse` holds the last payload for inspection.
+
+## Tests
+
+```bash
+node test-hub-mapping.js
+```
+
+Loads the real `dashboard.js`, feeds it a payload copied verbatim from the
+hub, and asserts every field lands where it should — including the partial
+reading case, where the hub omits what the sensor failed to measure, and the
+error cases the status line distinguishes.
+
+Nothing enforces the field names the app and the hub agree on. A rename on
+either side would show up on the television as zeroes rather than as an error,
+which is exactly the kind of failure nobody notices for a fortnight.
 
 ## Technical Details
 
 - **Platform**: Tizen 6.5, Platform Version 4.0
-- **API**: SmartThings REST API v1
+- **Data source**: `GET /api/weather` on the local hub
 - **Protocol**: Matter (CHIP) with AirQualityEnum support
 - **Package ID**: tvweather1.tvweather
 - **Auto-refresh**: 60 seconds

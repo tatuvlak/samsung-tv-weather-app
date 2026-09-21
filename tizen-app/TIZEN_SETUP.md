@@ -58,7 +58,7 @@ Once Tizen Studio is running and TV is connected:
 3. Project name: "tv-weather"
 4. Click Finish
 5. Delete generated files, copy tizen-app/ contents into project
-6. Edit config.js with your SmartThings PAT
+6. Edit config.js with the hub address and READ_TOKEN
 7. Right-click project → Build
 8. Right-click project → Run As → Run on Target Device
 9. Select your TV from device list
