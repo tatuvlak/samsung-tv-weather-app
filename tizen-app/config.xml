@@ -19,9 +19,7 @@
        on the NAS, and Open-Meteo for the forecast panel. The hub's address is
        duplicated in config.js - change it in both places, or the fetch is
        blocked by policy rather than failing on the network, which looks
-       nothing like an address problem from the TV's console.
-       api.open-meteo.com was missing here before, so the forecast panel was
-       relying on the policy not being enforced. -->
+       nothing like an address problem from the TV's console. -->
   <tizen:content-security-policy>
     default-src 'self';
     connect-src 'self' http://192.168.18.250:5000 https://api.open-meteo.com;

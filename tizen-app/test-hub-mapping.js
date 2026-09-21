@@ -15,6 +15,11 @@ const ctx = {
   localStorage: { getItem: () => null, setItem: () => {} },
   document: { getElementById: () => null },
   setInterval: () => 1,
+  // The forecast panel is out of scope here — it talks to Open-Meteo, not the
+  // hub. renderDashboard schedules it through requestAnimationFrame, so a
+  // no-op stub keeps it from running rather than needing a browser.
+  requestAnimationFrame: () => 0,
+  setTimeout: () => 0,
   Date, JSON, Math, isFinite, parseFloat, String, Number,
   renderDashboard: d => captured.push(d),
 };
