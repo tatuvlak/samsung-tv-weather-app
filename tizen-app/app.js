@@ -37,10 +37,58 @@ async function refreshDashboard() {
     status.textContent = 'Refreshing...';
     await fetchAndRenderDashboard();
     status.textContent = '';
+    return true;
   } catch (err) {
-    console.error('Refresh failed:', err);
+    console.error('[APP] refresh failed:', err);
     status.textContent = describeError(err);
+    return false;
   }
+}
+
+// Put the failure where someone looking at the television will see it.
+//
+// A failed first fetch left the dashboard container empty, so the screen
+// showed the app icon and index.html's `Last updated: --:--:--` placeholder
+// and nothing else. That looks like a hang. The status line did say what had
+// happened, but it is small text above an otherwise blank panel and is easy
+// to miss entirely.
+function showStartupFailure(message) {
+  const container = document.getElementById('dashboard-container');
+  if (!container) return;
+  container.innerHTML =
+    '<div class="dashboard"><section class="dashboard-panel" style="border-color:#ff9800;">' +
+    '<h2>No data</h2>' +
+    '<div class="alert-message" style="color:#ff9800; background:#ff980022;">' +
+    message +
+    '</div>' +
+    '<div class="pm-details"><div class="pm-row"><label>Retrying</label>' +
+    '<span class="pm-value">every ' + (((cfg.hub && cfg.hub.refreshSeconds) || 60)) + 's</span>' +
+    '</div></div></section></div>';
+}
+
+// The first fetch can land before the TV's network stack is up. With a single
+// attempt the screen then stayed blank until the next scheduled refresh a full
+// minute later, which read as a hang rather than as a retry. Try a few times,
+// a few seconds apart, before settling into the normal interval.
+async function startupRefresh(attempts, delayMs) {
+  for (let i = 1; i <= attempts; i++) {
+    status.textContent = i === 1 ? 'Loading...' : 'Loading... (attempt ' + i + ' of ' + attempts + ')';
+    try {
+      await fetchAndRenderDashboard();
+      status.textContent = '';
+      return true;
+    } catch (err) {
+      console.error('[APP] startup attempt ' + i + ' of ' + attempts + ' failed:', err);
+      if (i === attempts) {
+        const message = describeError(err);
+        status.textContent = message;
+        showStartupFailure(message);
+        return false;
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
 }
 
 // Wire UI - no buttons to wire, app is fully automated
@@ -169,8 +217,15 @@ document.addEventListener('focusin', (e) => {
     console.warn('Could not enable screen wake lock:', e);
   }
 
-  await refreshDashboard();
+  // Four tries three seconds apart: enough to cover the network coming up,
+  // short enough that a genuinely unreachable hub is reported quickly rather
+  // than leaving the screen ambiguous.
+  await startupRefresh(4, 3000);
 
+  // The periodic refresh keeps its single attempt on purpose. By then there is
+  // already a dashboard on screen, a miss just leaves the previous reading
+  // showing, and its timestamp visibly ages — which is the honest thing for it
+  // to do. Only the empty screen at startup needed rescuing.
   const seconds = (cfg.hub && cfg.hub.refreshSeconds) || 60;
   setInterval(refreshDashboard, seconds * 1000);
 
