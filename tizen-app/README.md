@@ -215,6 +215,14 @@ missing value shows `N/A` rather than a convincing `0.0`, and that the panels,
 metric boxes and rows are identical in both — so a gap never moves anything on
 screen.
 
+```bash
+node test-startup-retry.js
+```
+
+Loads the real `app.js` and checks the startup path: one attempt when the hub
+answers, retries when it does not, and a visible panel on screen rather than a
+blank dashboard when every attempt fails.
+
 Nothing enforces the field names the app and the hub agree on. A rename on
 either side would show up on the television as zeroes rather than as an error,
 which is exactly the kind of failure nobody notices for a fortnight.
