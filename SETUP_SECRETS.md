@@ -65,10 +65,10 @@ hub on the NAS, so there is no client secret and nothing to re-authorise.
    is blocked by policy rather than failing on the network, which looks nothing
    like an address problem.
 
-4. **Build and deploy:**
-   ```bash
-   tizen build-web -out ./build
-   ```
+4. **Build and deploy** — the full sequence is in
+   [`tizen-app/DEPLOYMENT.md`](tizen-app/DEPLOYMENT.md). `build-web` alone does
+   not produce an installable package; it has to be followed by `tizen package`
+   and needs the `-e` exclude list, or the install fails on the signature.
 
 ⚠️ `config.js` is gitignored and will NOT be committed.
 

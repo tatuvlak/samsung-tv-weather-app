@@ -56,22 +56,28 @@ Step 2: Update config.js with the hub address and READ_TOKEN
 - Open tizen-app/config.js
 - Add the hub address and READ_TOKEN
 
-Step 3: Build the Web Package
-```powershell
-cd tizen-app
-tizen build-web --out ./build
-```
-This creates a `.wgt` file (Tizen web package) in the build/ folder.
+Step 3: Build, Package and Install
 
-Step 4: Install on TV
 ```powershell
-sdb install ./build/tv-weather.wgt
+cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <TV_IP>:26101; tizen run -p tvweather1.tvweather -s <TV_IP>:26101
 ```
 
-Step 5: Launch App on TV
-```powershell
-sdb shell app_launcher -s com.example.tvweather
-```
+`tizen-app/DEPLOYMENT.md` is the canonical copy of this sequence, including the
+step-by-step version with an explanation of each part. Prefer it over the line
+above if the two ever disagree.
+
+Three things this doc used to get wrong, worth knowing if you have an older
+copy of it in a terminal history:
+
+- **`build-web` does not produce a `.wgt`.** It stages the web files; `tizen
+  package` is what makes and signs the package. Installing straight after
+  `build-web` installs nothing.
+- **The `-e` exclude list is required.** Without it the `.md` files and the
+  Node test harnesses are copied in and signed, and the install fails on the
+  signature.
+- **The application id is `tvweather1.tvweather`**, from `config.xml`, not
+  `com.example.tvweather`. The wrong id makes uninstall and launch quietly do
+  nothing.
 
 The app should now appear on your TV screen!
 
@@ -87,16 +93,26 @@ Create a PowerShell script `deploy.ps1` in tizen-app/:
 
 ```powershell
 # deploy.ps1
+param([Parameter(Mandatory=$true)][string]$TvIp)
+
 Write-Host "Building TV Weather App..."
-tizen build-web --out ./build
+Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"
 
 if ($?) {
+    Write-Host "Packaging and signing..."
+    Push-Location build
+    tizen package -t wgt -s bartek -- .
+    Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"
+    Pop-Location
+
     Write-Host "Installing on TV..."
-    sdb install ./build/tv-weather.wgt
-    
+    tizen uninstall -p tvweather1.tvweather -s "${TvIp}:26101"
+    tizen install -n build/tv-weather.wgt -s "${TvIp}:26101"
+
     if ($?) {
         Write-Host "Launching app..."
-        sdb shell app_launcher -s com.example.tvweather
+        tizen run -p tvweather1.tvweather -s "${TvIp}:26101"
         Write-Host "App should appear on TV now!"
     }
 } else {
@@ -136,7 +152,7 @@ A: Check TV logs:
 ```powershell
 sdb dlog *:V
 ```
-Look for error messages related to com.example.tvweather
+Look for error messages related to `tvweather1.tvweather`
 
 Q: "Permission denied" error
 A: Accept the permission prompt on the TV itself when sdb tries to connect.
@@ -149,11 +165,9 @@ Testing Workflow
 Once deployment works:
 
 1. Make changes in VS Code
-2. Run: `tizen build-web --out ./build`
-3. Run: `sdb install ./build/tv-weather.wgt`
-4. Run: `sdb shell app_launcher -s com.example.tvweather`
-5. View on TV
-6. Check logs with: `sdb dlog *:V`
+2. Run the one-liner from Step 3 above, or from `DEPLOYMENT.md`
+3. View on TV
+4. Check logs with: `sdb dlog *:V`
 
 Quick Reference Commands
 
@@ -165,22 +179,19 @@ tizen --version
 sdb devices
 
 # Connect to TV (one time)
-sdb connect 192.168.1.100:26101
+# The M7 changes address regularly - check it rather than reusing an old one.
+sdb connect <TV_IP>:26101
 
-# Build app
-tizen build-web --out ./build
-
-# Install on TV
-sdb install ./build/tv-weather.wgt
+# Build, package and install - see Step 3, or DEPLOYMENT.md
 
 # Launch app
-sdb shell app_launcher -s com.example.tvweather
+tizen run -p tvweather1.tvweather -s <TV_IP>:26101
 
 # View live logs
 sdb dlog *:V
 
 # Uninstall app
-sdb uninstall com.example.tvweather
+tizen uninstall -p tvweather1.tvweather -s <TV_IP>:26101
 
 # Reboot TV
 sdb reboot
@@ -191,9 +202,7 @@ Next Steps
 1. Download and extract Tizen CLI tools
 2. Add to PATH and restart PowerShell
 3. Connect TV via: `sdb connect <TV_IP>:26101`
-4. Run: `tizen build-web --out ./build` from tizen-app/
-5. Run: `sdb install ./build/tv-weather.wgt`
-6. Run: `sdb shell app_launcher -s com.example.tvweather`
-7. Check TV for app!
+4. Run the Step 3 one-liner from `tizen-app/`
+5. Check TV for app!
 
 No IDE needed—just VS Code and CLI commands. Much simpler!
