@@ -44,7 +44,7 @@ Option 2: Command-Line Deployment (Recommended)
 cd tizen-app
 
 # Step 1: Build the web application (exclude non-app files to avoid signature errors)
-tizen build-web -out ./build -e "*.md,build-clean/*,.gitignore"
+tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"
 
 # Step 2: Package and sign the built application
 cd build
@@ -70,12 +70,15 @@ tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 
 **One-Line Deploy (after initial setup):**
 ```powershell
-cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101; tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
+cd tizen-app; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue; tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"; cd build; tizen package -t wgt -s bartek -- .; Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..; tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101; tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101; tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
 
 **Important Notes:**
 - The `-e` exclude parameter is critical - it prevents unsigned files from causing installation failures
 - Documentation files (*.md) must be excluded as they're not needed in the runtime package
+- `test-*.js` are the offline Node harnesses. `index.html` never loads them, so
+  packaging them was harmless, but they were being signed into the .wgt as dead
+  weight. They are excluded for the same reason the .md files are.
 - Package must be signed with your certificate profile (replace `bartek` with your profile name)
 
 Option 3: Direct File Sharing (For Testing)
