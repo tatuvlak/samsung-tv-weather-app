@@ -196,8 +196,25 @@ The status line names the case, so read it before guessing:
   not posting. Look at the sensor, not at this app.
 - *"STALE"* next to the reading time — data is arriving but old. Again the
   sensor, not this app.
+- *"HUB UNREACHABLE — showing stored reading from ..."* — the hub is down and
+  the numbers on screen came from the television's own storage. They are real
+  readings, just old; the age on that line is the true age and keeps growing.
 
 `window.lastRawResponse` holds the last payload for inspection.
+
+### What a hub outage looks like
+
+The sensor panels dim and keep showing the last reading they had, labelled
+with its real age. **The forecast panel is unaffected** — it fetches
+Open-Meteo directly and has never gone through the hub, so a hub outage should
+never cost you the forecast. If it does, that is a bug, not the hub.
+
+On a television that has never had a successful read there is nothing stored,
+so the sensor panels show `N/A` and the forecast still renders.
+
+The stored reading lives in the TV's `localStorage` under `lastReading`. It is
+per-television, it is lost when the app's storage is cleared, and it is never
+written back to the hub.
 
 ## Tests
 
@@ -220,8 +237,19 @@ node test-startup-retry.js
 ```
 
 Loads the real `app.js` and checks the startup path: one attempt when the hub
-answers, retries when it does not, and a visible panel on screen rather than a
-blank dashboard when every attempt fails.
+answers, retries when it does not, and a fall back to the stored reading —
+rather than a blank dashboard — when every attempt fails.
+
+```bash
+node test-offline-cache.js
+```
+
+Checks the hub-outage path in `dashboard.js`: that a good reading is stored,
+that it comes back with its age advanced by the elapsed time rather than
+replaying the age the hub reported, that the sensor panels are dimmed and the
+forecast panel is not, and that the layout is identical across all three
+states. Also checks that storage being unavailable costs the fallback and not
+the dashboard.
 
 Nothing enforces the field names the app and the hub agree on. A rename on
 either side would show up on the television as zeroes rather than as an error,
