@@ -72,23 +72,26 @@ Ensure your certificate profile is configured in Tizen Studio. Replace `<YOUR_CE
 
 ### Building the Package
 
-Navigate to the `build-clean` directory and create a signed .wgt package:
+From `tizen-app/`, stage the web files and then sign them into a `.wgt`:
 
 ```powershell
-cd build-clean
+# Stage. The exclude list keeps the docs and the Node test harnesses out - they
+# are not part of the runtime, and packaging them fails the install on the
+# signature.
+Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"
 
-# Clean old artifacts
-Remove-Item "*.wgt" -Force -ErrorAction SilentlyContinue
-Remove-Item ".manifest.tmp" -Force -ErrorAction SilentlyContinue
-Remove-Item "*signature*.xml" -Force -ErrorAction SilentlyContinue
-
-# Create signed package (replace '<YOUR_CERT_PROFILE>' with your certificate profile name)
+# Sign. Replace '<YOUR_CERT_PROFILE>' with your certificate profile name.
+cd build
 tizen package -t wgt -s <YOUR_CERT_PROFILE> -- .
 
-# Copy package to parent directory for easy access
-Copy-Item "TV Weather.wgt" "..\tv-weather.wgt" -Force
+# tizen package names the file after <name> in config.xml.
+Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"
 cd ..
 ```
+
+`build-web` on its own does not produce a package — it stages the files that
+`tizen package` then signs. Installing straight after it installs nothing.
 
 ### Installing on TV
 
@@ -100,8 +103,10 @@ cd ..
 
 2. **Install the package:**
    ```powershell
-   tizen install -n "tv-weather.wgt" -s <YOUR_TV_IP>:26101
+   tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101
    ```
+   If the certificate has changed since the last install, uninstall first:
+   `tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101`
 
 3. **Launch the app:**
    ```powershell
@@ -113,40 +118,37 @@ cd ..
 For convenience, you can run all commands in sequence:
 
 ```powershell
-cd build-clean
-Remove-Item "*.wgt" -Force -ErrorAction SilentlyContinue
-Remove-Item ".manifest.tmp" -Force -ErrorAction SilentlyContinue
-Remove-Item "*signature*.xml" -Force -ErrorAction SilentlyContinue
-tizen package -t wgt -s <YOUR_CERT_PROFILE> -- .
-Copy-Item "TV Weather.wgt" "..\tv-weather.wgt" -Force
-cd ..
-tizen install -n "tv-weather.wgt" -s <YOUR_TV_IP>:26101
+Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+tizen build-web -out ./build -e "*.md,test-*.js,build-clean/*,.gitignore"
+cd build; tizen package -t wgt -s <YOUR_CERT_PROFILE> -- .
+Move-Item -Force "Świnka Pogodynka.wgt" "tv-weather.wgt"; cd ..
+tizen uninstall -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
+tizen install -n build/tv-weather.wgt -s <YOUR_TV_IP>:26101
 tizen run -p tvweather1.tvweather -s <YOUR_TV_IP>:26101
 ```
+
+`DEPLOYMENT.md` holds the same sequence with a note on each step. If the two
+ever disagree, DEPLOYMENT.md is the one that gets used.
 
 ## Project Structure
 
 ```
 tizen-app/
-├── build-clean/           # Clean build directory (used for packaging)
-│   ├── app.js            # Polling and remote navigation
-│   ├── dashboard.js      # Weather data visualization
-│   ├── index.html        # Application shell
-│   ├── style.css         # Styling
-│   ├── config.js         # Hub address and read token (gitignored)
-│   ├── config.xml        # Tizen app configuration
-│   ├── tizen-manifest.xml # App manifest
-│   └── icon.svg          # App icon
-├── app.js                # Source: polling and remote navigation
-├── dashboard.js          # Source: Data visualization
-├── index.html            # Source: HTML shell
-├── style.css             # Source: Styling
-├── config.js             # Source: Configuration
-├── config.xml            # Source: Tizen config
-├── tizen-manifest.xml    # Source: App manifest
-├── icon.svg              # Source: App icon
+├── app.js                # Startup, refresh loop and remote navigation
+├── dashboard.js          # Hub read, rendering, and the offline fallback
+├── index.html            # Application shell
+├── style.css             # Styling
+├── config.js             # Hub address and read token (gitignored)
+├── config.example.js     # Template for the above
+├── config.xml            # Tizen app configuration and CSP
+├── tizen-manifest.xml    # App manifest
+├── icon.png, icon.svg    # App icon
+├── test-hub-mapping.js   # Offline harness: hub payload mapping and rendering
+├── test-startup-retry.js # Offline harness: startup retries and fallback
+├── test-offline-cache.js # Offline harness: hub-outage behaviour
+├── build/                # Created by build-web; not in git
 ├── README.md             # This file
-├── DEPLOYMENT.md         # Additional deployment notes
+├── DEPLOYMENT.md         # Canonical build and deploy sequence
 ├── SDB_INSTALL.md        # SDB setup instructions
 ├── TIZEN_SETUP.md        # Tizen Studio setup
 └── VS_CODE_SETUP.md      # VS Code setup
@@ -167,9 +169,13 @@ Open http://localhost:8000 in a browser to test the UI and API integration.
 
 ### Making Changes
 
-1. Edit source files in `tizen-app/` directory
-2. Copy changes to `build-clean/` directory
+1. Edit source files in `tizen-app/` directly
+2. Run the tests: `node test-hub-mapping.js && node test-startup-retry.js && node test-offline-cache.js`
 3. Follow the build and deployment steps above
+
+There is nothing to copy by hand. `build-web` stages `tizen-app/` into `build/`
+on every run, and `build/` is removed first, so a file deleted from the source
+cannot survive into the package.
 
 ## Troubleshooting
 
