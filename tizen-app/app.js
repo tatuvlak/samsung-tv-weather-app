@@ -40,30 +40,24 @@ async function refreshDashboard() {
     return true;
   } catch (err) {
     console.error('[APP] refresh failed:', err);
-    status.textContent = describeError(err);
+    showOffline(describeError(err));
     return false;
   }
 }
 
-// Put the failure where someone looking at the television will see it.
+// The hub is unreachable. Draw the dashboard anyway.
 //
-// A failed first fetch left the dashboard container empty, so the screen
-// showed the app icon and index.html's `Last updated: --:--:--` placeholder
-// and nothing else. That looks like a hang. The status line did say what had
-// happened, but it is small text above an otherwise blank panel and is easy
-// to miss entirely.
-function showStartupFailure(message) {
-  const container = document.getElementById('dashboard-container');
-  if (!container) return;
-  container.innerHTML =
-    '<div class="dashboard"><section class="dashboard-panel" style="border-color:#ff9800;">' +
-    '<h2>No data</h2>' +
-    '<div class="alert-message" style="color:#ff9800; background:#ff980022;">' +
-    message +
-    '</div>' +
-    '<div class="pm-details"><div class="pm-row"><label>Retrying</label>' +
-    '<span class="pm-value">every ' + (((cfg.hub && cfg.hub.refreshSeconds) || 60)) + 's</span>' +
-    '</div></div></section></div>';
+// Previously this left whatever was already on screen and only changed the
+// status line, which meant the reading's age stopped advancing while the hub
+// was down — the panel kept claiming the age it had when the last fetch
+// succeeded. Re-rendering from the stored reading each time keeps the age
+// honest, and on the startup path it puts a full dashboard up where there had
+// only been an error panel.
+function showOffline(message) {
+  const hadStored = renderOfflineDashboard();
+  status.textContent = hadStored
+    ? message + ' - showing the last stored reading'
+    : message;
 }
 
 // The first fetch can land before the TV's network stack is up. With a single
@@ -80,9 +74,7 @@ async function startupRefresh(attempts, delayMs) {
     } catch (err) {
       console.error('[APP] startup attempt ' + i + ' of ' + attempts + ' failed:', err);
       if (i === attempts) {
-        const message = describeError(err);
-        status.textContent = message;
-        showStartupFailure(message);
+        showOffline(describeError(err));
         return false;
       }
       await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -223,8 +215,8 @@ document.addEventListener('focusin', (e) => {
   await startupRefresh(4, 3000);
 
   // The periodic refresh keeps its single attempt on purpose. By then there is
-  // already a dashboard on screen, a miss just leaves the previous reading
-  // showing, and its timestamp visibly ages — which is the honest thing for it
+  // already a dashboard on screen and a miss falls back to the stored reading,
+  // whose age advances with every attempt — which is the honest thing for it
   // to do. Only the empty screen at startup needed rescuing.
   const seconds = (cfg.hub && cfg.hub.refreshSeconds) || 60;
   setInterval(refreshDashboard, seconds * 1000);

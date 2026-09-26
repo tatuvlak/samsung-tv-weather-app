@@ -12,7 +12,7 @@
 const fs = require('fs'), vm = require('vm');
 
 function run({ failures, attempts = 4 }) {
-  const calls = { fetches: 0, intervals: 0 };
+  const calls = { fetches: 0, intervals: 0, offlineRenders: 0 };
   const el = () => ({ textContent: '', innerHTML: '', style: {}, addEventListener() {}, focus() {}, classList: { add(){}, remove(){}, contains(){ return false; } } });
   const statusEl = el(), containerEl = el();
 
@@ -27,6 +27,10 @@ function run({ failures, attempts = 4 }) {
       addEventListener() {}, querySelectorAll: () => [], body: el(), activeElement: null,
     },
     APP_CONFIG: { hub: { baseUrl: 'http://hub:5000', readToken: 'x', refreshSeconds: 60 } },
+    // Lives in dashboard.js, which this test does not load. Record the call and
+    // report that a stored reading was found, as it would be on a television
+    // that has been running.
+    renderOfflineDashboard: () => { calls.offlineRenders++; containerEl.innerHTML = '<div class="dashboard">stored</div>'; return true; },
     // Stand in for the real fetch+render: fail the first `failures` times.
     fetchAndRenderDashboard: async () => {
       calls.fetches++;
@@ -63,18 +67,36 @@ function run({ failures, attempts = 4 }) {
     eq('slow start: periodic refresh scheduled', calls.intervals, 1);
   }
 
-  // Hub genuinely unreachable: it gives up after four and says so ON SCREEN,
-  // not only in the small status line above an empty panel.
+  // Hub genuinely unreachable: it gives up after four and draws the dashboard
+  // from the stored reading, rather than replacing the screen with an error
+  // panel. The whole point is that the forecast still gets rendered, and the
+  // forecast only runs as part of a real dashboard render.
   {
     const { calls, containerEl, statusEl } = run({ failures: 99 });
     await new Promise(r => setImmediate(r));
     eq('unreachable: stops after 4', calls.fetches, 4);
-    if (containerEl.innerHTML.indexOf('No data') === -1) fail.push('unreachable: nothing rendered into the dashboard');
+    eq('unreachable: fell back to the stored reading', calls.offlineRenders, 1);
+    if (containerEl.innerHTML.indexOf('dashboard') === -1) fail.push('unreachable: no dashboard rendered');
     if (!statusEl.textContent) fail.push('unreachable: status line left empty');
+    if (statusEl.textContent.indexOf('last stored reading') === -1) {
+      fail.push('unreachable: status line does not say the numbers are stored ones');
+    }
     // Still scheduled, so it recovers on its own once the hub comes back.
     eq('unreachable: keeps trying periodically', calls.intervals, 1);
   }
 
+  // A refresh failing after a good start must re-render too, not just change
+  // the status line. Leaving the old panel alone froze the reading's age at
+  // whatever it was when the hub went down.
+  {
+    const { ctx, calls } = run({ failures: 0 });
+    await new Promise(r => setImmediate(r));
+    eq('recovery: no offline render while healthy', calls.offlineRenders, 0);
+    ctx.fetchAndRenderDashboard = async () => { throw new Error('boom'); };
+    await ctx.refreshDashboard();
+    eq('recovery: a later failure falls back', calls.offlineRenders, 1);
+  }
+
   if (fail.length) { console.log('FAIL\n  ' + fail.join('\n  ')); process.exit(1); }
-  console.log('all checks passed — startup retries, succeeds late, and reports failure on screen');
+  console.log('all checks passed — startup retries, succeeds late, and falls back to the stored reading');
 })();

@@ -311,6 +311,12 @@ function renderDashboard(deviceStatus) {
   const MISSING_BORDER = '#666';
   const MISSING_TEXT = '#999';
 
+  // Rendering from the cache rather than from the hub. Every panel fed by the
+  // sensor is dimmed; the forecast panel is not, because it comes straight
+  // from Open-Meteo and is as fresh as it ever was.
+  const offline = deviceStatus.offline === true;
+  const staleClass = offline ? ' stale-data' : '';
+
   const fmt = (v, digits, unit) => v === null ? 'N/A' : v.toFixed(digits) + unit;
   const colorOr = (v, fn) => v === null ? MISSING_TEXT : fn(v);
 
@@ -335,12 +341,20 @@ function renderDashboard(deviceStatus) {
   if (lastEl) {
     if (deviceStatus.recordedAt) {
       const t = new Date(deviceStatus.recordedAt).toLocaleTimeString();
-      lastEl.textContent = deviceStatus.stale
-        ? 'Reading from ' + t + ' \u2014 STALE, ' + formatAge(deviceStatus.ageSeconds) + ' old'
-        : 'Reading from ' + t;
-      lastEl.style.color = deviceStatus.stale ? '#ff9800' : '';
+      if (offline) {
+        // Two different failures that must not read the same: the hub being
+        // unreachable, and the hub answering with an old reading. Both show
+        // old numbers; only one of them means the station itself is fine.
+        lastEl.textContent = 'HUB UNREACHABLE \u2014 showing stored reading from ' + t +
+                             ', ' + formatAge(deviceStatus.ageSeconds) + ' old';
+      } else {
+        lastEl.textContent = deviceStatus.stale
+          ? 'Reading from ' + t + ' \u2014 STALE, ' + formatAge(deviceStatus.ageSeconds) + ' old'
+          : 'Reading from ' + t;
+      }
+      lastEl.style.color = (offline || deviceStatus.stale) ? '#ff9800' : '';
     } else {
-      lastEl.textContent = 'No reading';
+      lastEl.textContent = offline ? 'HUB UNREACHABLE \u2014 no stored reading' : 'No reading';
       lastEl.style.color = '#ff9800';
     }
   }
@@ -349,7 +363,7 @@ function renderDashboard(deviceStatus) {
     <div class="dashboard">
       <div class="dashboard-grid">
         <!-- TOP LEFT: Air Quality (most urgent) -->
-        <section class="dashboard-panel air-quality-panel">
+        <section class="dashboard-panel air-quality-panel${staleClass}">
           <h2>Air Quality</h2>
           <div class="metric-display" style="border-color: ${aqiData.color};">
             <span class="aqi-icon">${aqiData.icon}</span>
@@ -375,7 +389,7 @@ function renderDashboard(deviceStatus) {
         </section>
 
         <!-- TOP RIGHT: Temperature + Clothing -->
-        <section class="dashboard-panel temperature-panel">
+        <section class="dashboard-panel temperature-panel${staleClass}">
           <h2>Temperature & Clothing</h2>
           <div class="temp-display" style="border-color: ${tempBand.color};">
             <span class="temp-value"${temp === null ? ' style="color: ' + MISSING_TEXT + '"' : ''}>${fmt(temp, 1, '°C')}</span>
@@ -390,7 +404,7 @@ function renderDashboard(deviceStatus) {
         </section>
 
         <!-- BOTTOM LEFT: Humidity & Pressure -->
-        <section class="dashboard-panel humidity-panel">
+        <section class="dashboard-panel humidity-panel${staleClass}">
           <h2>Humidity & Pressure</h2>
           <div class="metric-row">
             <label>Humidity</label>
@@ -490,6 +504,93 @@ function formatAge(seconds) {
   return Math.round(seconds / 86400) + ' days';
 }
 
+// --- Last-known-good reading, kept on the television -------------------------
+//
+// The sensor path has one server on it. When that server is down the dashboard
+// used to replace itself with an error panel, which also took the forecast
+// down with it — even though the forecast comes straight from Open-Meteo and
+// was never affected. Keeping the last reading here turns an outage into "old
+// numbers, labelled old" instead of "no numbers".
+//
+// This is a display convenience, not a data store: it is per-television, it is
+// lost if the app's storage is cleared, and it is never written back anywhere.
+
+const CACHE_KEY = 'lastReading';
+
+function cacheReading(reading) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ cachedAt: Date.now(), reading: reading }));
+  } catch (e) {
+    // Storage being unavailable costs the fallback, not the dashboard.
+    console.warn('[CACHE] could not store reading:', e);
+  }
+}
+
+function loadCachedReading() {
+  let entry = null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    entry = JSON.parse(raw);
+  } catch (e) {
+    console.warn('[CACHE] could not read stored reading:', e);
+    return null;
+  }
+  if (!entry || !entry.reading) return null;
+
+  const reading = entry.reading;
+
+  // Age has to be recomputed, never replayed. The stored ageSeconds was the
+  // age when the hub answered it; by the time we fall back on it the reading
+  // is that much older again, and showing the stored number would freeze the
+  // age at whatever it was when the hub went down.
+  //
+  // Deliberately derived from age_seconds plus elapsed wall time rather than
+  // from recordedAt. The hub's timestamps carry no timezone and six decimal
+  // places, so parsing them is engine-dependent; age_seconds is a plain number
+  // and needs no interpretation.
+  if (typeof reading.ageSeconds === 'number' && typeof entry.cachedAt === 'number') {
+    reading.ageSeconds = reading.ageSeconds + (Date.now() - entry.cachedAt) / 1000;
+  } else {
+    reading.ageSeconds = undefined;
+  }
+
+  reading.stale = true;
+  reading.offline = true;
+  return reading;
+}
+
+// What to show when the hub cannot be reached at all.
+//
+// Every panel still renders. The sensor values are whatever was last stored
+// (dimmed, and labelled with their real age) or N/A if nothing was ever
+// stored; the forecast panel renders and fetches exactly as it always does.
+// Returns whether a stored reading was actually found, so the caller can say
+// so in the status line.
+function renderOfflineDashboard() {
+  const reading = loadCachedReading();
+  if (reading) {
+    console.log('[CACHE] hub unreachable, rendering stored reading', reading.ageSeconds, 's old');
+    renderDashboard(reading);
+    return true;
+  }
+  console.log('[CACHE] hub unreachable and nothing stored - rendering an empty dashboard');
+  renderDashboard({
+    temperature: { value: undefined },
+    humidity: { value: undefined },
+    pm1: { value: undefined },
+    pm25: { value: undefined },
+    pm10: { value: undefined },
+    aqi: { value: 'N/A' },
+    pressure: null,
+    recordedAt: null,
+    ageSeconds: undefined,
+    stale: true,
+    offline: true
+  });
+  return false;
+}
+
 // Fetch the latest reading from the local hub and render it.
 //
 // This used to call api.smartthings.com to list devices, pick one, read its
@@ -533,6 +634,7 @@ async function fetchAndRenderDashboard() {
   };
 
   console.log('[DASHBOARD] rendering', displayData);
+  cacheReading(displayData);
   renderDashboard(displayData);
   return displayData;
 }

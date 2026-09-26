@@ -128,3 +128,12 @@ footer { margin-top: 1.2vw; opacity: 0.8; font-size: 1.0vw; }
 .manual-code-entry button { background: #0066aa; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
 .manual-code-entry button:hover { background: #0099ff; }
 .manual-code-entry button:disabled { background: #666; cursor: not-allowed; }
+
+/* A panel whose numbers came from the cache rather than from the hub.
+ *
+ * Dimming only — no size, border or spacing change, so nothing moves when the
+ * hub goes down or comes back. The forecast panel deliberately never gets this
+ * class: it fetches Open-Meteo directly and is unaffected by a hub outage. */
+.dashboard-panel.stale-data {
+  opacity: 0.55;
+}
