@@ -202,6 +202,12 @@ The status line names the case, so read it before guessing:
   not posting. Look at the sensor, not at this app.
 - *"STALE"* next to the reading time — data is arriving but old. Again the
   sensor, not this app.
+- *"Air sensor reset line not working..."* — nothing is wrong with the
+  readings. The station is telling you its PMS reset line did not hold the
+  module off through the last sleep, so the fan has been running continuously.
+  Check the wire between the ESP32's GPIO3 and the module's RST pin. The
+  station has no console anyone reads, so this notice is the only place that
+  fault can appear.
 - *"HUB UNREACHABLE — showing stored reading from ..."* — the hub is down and
   the numbers on screen came from the television's own storage. They are real
   readings, just old; the age on that line is the true age and keeps growing.
