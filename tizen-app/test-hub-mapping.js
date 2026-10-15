@@ -85,6 +85,20 @@ ctx.renderDashboard = d => captured.push(d);
     eq('pmsHoldOk ' + label, got.pmsHoldOk, want);
   }
 
+  // 24-hour time, and an offset-bearing timestamp converted to the TV's zone.
+  // The old naive string was read as already-local, which put the reading time
+  // behind the wall clock beside it by exactly the viewer's UTC offset.
+  eq('clock24 midnight',  ctx.clock24(new Date(2026, 9, 15, 0, 4, 7)),  '00:04:07');
+  eq('clock24 afternoon', ctx.clock24(new Date(2026, 9, 15, 13, 0, 0)), '13:00:00');
+  eq('clock24 late',      ctx.clock24(new Date(2026, 9, 15, 23, 59, 59)), '23:59:59');
+  eq('clock24 junk',      ctx.clock24(new Date('nope')), '--:--:--');
+  eq('clock24 not a date', ctx.clock24(undefined), '--:--:--');
+  // An offset-bearing stamp is an instant, so this is the same moment however
+  // the machine running the test is configured.
+  eq('an offset is honoured',
+     ctx.clock24(new Date('2026-10-15T21:04:07+00:00')),
+     ctx.clock24(new Date(Date.UTC(2026, 9, 15, 21, 4, 7))));
+
   for (const [code, want] of [[404,'NO_READINGS'],[401,'NOT_AUTHORIZED'],[403,'NOT_AUTHORIZED'],[500,'HTTP 500']]) {
     ctx.fetch = async () => ({ ok:false, status:code, json: async () => ({}) });
     try { await ctx.fetchAndRenderDashboard(); fail.push(`${code}: no throw`); }

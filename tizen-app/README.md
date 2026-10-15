@@ -212,6 +212,20 @@ The status line names the case, so read it before guessing:
   the numbers on screen came from the television's own storage. They are real
   readings, just old; the age on that line is the true age and keeps growing.
 
+- *The reading time is behind the wall clock* — fixed, but worth knowing the
+  shape of it. The hub used to send `recorded_at` as a naive ISO string with no
+  UTC offset, rendered in the container's zone (UTC). `new Date()` read that as
+  already-local, so the reading time showed two hours behind. `age_seconds` and
+  `stale` are computed from epoch arithmetic and were always correct, which is
+  why staleness behaved perfectly while the clock was wrong. If it ever
+  reappears, check that `/api/weather` still returns an offset:
+  `2026-10-15T21:04:07+00:00`, not `2026-10-15T21:04:07`.
+
+Times are 24-hour, formatted by hand in `clock24()` rather than through
+`toLocaleTimeString()` — Tizen's WebKit takes its own view of `Intl` options,
+and the television's region setting is not something this app should be at the
+mercy of.
+
 `window.lastRawResponse` holds the last payload for inspection.
 
 ### What a hub outage looks like

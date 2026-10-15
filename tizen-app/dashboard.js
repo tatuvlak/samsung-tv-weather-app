@@ -340,7 +340,11 @@ function renderDashboard(deviceStatus) {
   const lastEl = document.getElementById('last-updated');
   if (lastEl) {
     if (deviceStatus.recordedAt) {
-      const t = new Date(deviceStatus.recordedAt).toLocaleTimeString();
+      // The hub sends this with a UTC offset on it, so new Date() converts it
+      // to the television's own zone. It used to send a naive string, which
+      // new Date() read as already-local - and the reading time was therefore
+      // displayed two hours behind the wall clock beside it.
+      const t = clock24(new Date(deviceStatus.recordedAt));
       if (offline) {
         // Two different failures that must not read the same: the hub being
         // unreachable, and the hub answering with an old reading. Both show
@@ -493,7 +497,20 @@ function renderDashboard(deviceStatus) {
 
 function updateCurrentTime() {
   const currentTimeEl = document.getElementById('current-time');
-  if (currentTimeEl) currentTimeEl.textContent = new Date().toLocaleTimeString();
+  if (currentTimeEl) currentTimeEl.textContent = clock24(new Date());
+}
+
+// 24-hour time, formatted by hand.
+//
+// toLocaleTimeString() gives whatever the television's region setting asks
+// for, which here meant 11:04:17 PM. Passing { hour12: false } would usually
+// fix it, but this runs on Tizen's WebKit and Intl options are exactly the
+// sort of thing an older engine implements partially and silently ignores.
+// Three getters and a pad have no such opinions.
+function clock24(date) {
+  if (!(date instanceof Date) || isNaN(date.getTime())) return '--:--:--';
+  const pad = n => (n < 10 ? '0' : '') + n;
+  return pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
 }
 
 function formatAge(seconds) {
