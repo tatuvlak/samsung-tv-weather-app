@@ -32,11 +32,26 @@ function describeError(err) {
   }
 }
 
+// Anything wrong with the station that the readings themselves do not show.
+//
+// The station has no screen, no console anyone reads, and is mounted outside
+// with a power lead. Whatever it notices about itself travels on the hub push
+// and has to surface here or nowhere. Returns '' when there is nothing to say,
+// so it can be assigned to the status line either way — which is also why this
+// goes in the status line rather than the grid: the layout does not move.
+function healthNotice(reading) {
+  if (reading && reading.pmsHoldOk === false) {
+    return 'Air sensor reset line not working - the fan has been running ' +
+           'continuously. Check the wire to the module RST pin.';
+  }
+  return '';
+}
+
 async function refreshDashboard() {
   try {
     status.textContent = 'Refreshing...';
-    await fetchAndRenderDashboard();
-    status.textContent = '';
+    const reading = await fetchAndRenderDashboard();
+    status.textContent = healthNotice(reading);
     return true;
   } catch (err) {
     console.error('[APP] refresh failed:', err);
@@ -68,8 +83,8 @@ async function startupRefresh(attempts, delayMs) {
   for (let i = 1; i <= attempts; i++) {
     status.textContent = i === 1 ? 'Loading...' : 'Loading... (attempt ' + i + ' of ' + attempts + ')';
     try {
-      await fetchAndRenderDashboard();
-      status.textContent = '';
+      const reading = await fetchAndRenderDashboard();
+      status.textContent = healthNotice(reading);
       return true;
     } catch (err) {
       console.error('[APP] startup attempt ' + i + ' of ' + attempts + ' failed:', err);

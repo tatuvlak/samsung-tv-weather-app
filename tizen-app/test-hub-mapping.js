@@ -67,6 +67,24 @@ ctx.renderDashboard = d => captured.push(d);
   eq('partial aqi default', p.aqi.value, 'N/A');
   eq('partial stale', p.stale, true);
 
+  // The station's self-report on its PMS reset line. Not a measurement, and
+  // three-valued: absent means it has not checked yet, which must not read as
+  // a fault.
+  for (const [label, sent, want] of [
+    ['hold ok as 1',      1,         true],
+    ['hold failed as 0',  0,         false],
+    ['hold ok as true',   true,      true],
+    ['hold failed false', false,     false],
+    ['not checked',       undefined, undefined],
+    ['null',              null,      undefined],
+  ]) {
+    const body = {"temperature_c": 20.0, "recorded_at": "2026-10-15T20:00:00", "age_seconds": 5, "stale": false};
+    if (sent !== undefined) body.pms_hold_ok = sent;
+    ctx.fetch = async () => ({ ok:true, status:200, json: async () => body });
+    const got = await ctx.fetchAndRenderDashboard();
+    eq('pmsHoldOk ' + label, got.pmsHoldOk, want);
+  }
+
   for (const [code, want] of [[404,'NO_READINGS'],[401,'NOT_AUTHORIZED'],[403,'NOT_AUTHORIZED'],[500,'HTTP 500']]) {
     ctx.fetch = async () => ({ ok:false, status:code, json: async () => ({}) });
     try { await ctx.fetchAndRenderDashboard(); fail.push(`${code}: no throw`); }

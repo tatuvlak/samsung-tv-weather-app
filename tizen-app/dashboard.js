@@ -630,7 +630,15 @@ async function fetchAndRenderDashboard() {
     pressure: (typeof data.pressure_hpa === 'number') ? { value: data.pressure_hpa } : null,
     recordedAt: data.recorded_at,
     ageSeconds: data.age_seconds,
-    stale: data.stale === true
+    stale: data.stale === true,
+    // Not a measurement: the station's own report on whether its PMS reset
+    // line held the sensor off through the last sleep. The station is mounted
+    // outside with a power lead and nothing reads its serial console, so this
+    // dashboard is where that gets noticed. undefined means it has not checked
+    // yet, which is not the same as a fault.
+    pmsHoldOk: (data.pms_hold_ok === undefined || data.pms_hold_ok === null)
+      ? undefined
+      : data.pms_hold_ok === 1 || data.pms_hold_ok === true
   };
 
   console.log('[DASHBOARD] rendering', displayData);

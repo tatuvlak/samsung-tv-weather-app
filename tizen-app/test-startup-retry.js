@@ -11,7 +11,7 @@
 
 const fs = require('fs'), vm = require('vm');
 
-function run({ failures, attempts = 4 }) {
+function run({ failures, attempts = 4, reading = {} }) {
   const calls = { fetches: 0, intervals: 0, offlineRenders: 0 };
   const el = () => ({ textContent: '', innerHTML: '', style: {}, addEventListener() {}, focus() {}, classList: { add(){}, remove(){}, contains(){ return false; } } });
   const statusEl = el(), containerEl = el();
@@ -35,7 +35,7 @@ function run({ failures, attempts = 4 }) {
     fetchAndRenderDashboard: async () => {
       calls.fetches++;
       if (calls.fetches <= failures) throw new Error('boom');
-      return {};
+      return reading;
     },
   };
   ctx.window = ctx;
@@ -95,6 +95,29 @@ function run({ failures, attempts = 4 }) {
     ctx.fetchAndRenderDashboard = async () => { throw new Error('boom'); };
     await ctx.refreshDashboard();
     eq('recovery: a later failure falls back', calls.offlineRenders, 1);
+  }
+
+  // A fault the readings cannot show: the station says its PMS reset line did
+  // not hold. Nothing reads that sensor's serial console, so the dashboard is
+  // the only place it can surface.
+  {
+    const { statusEl } = run({ failures: 0, reading: { pmsHoldOk: false } });
+    await new Promise(r => setImmediate(r));
+    if (statusEl.textContent.indexOf('reset line') === -1) {
+      fail.push('health: a failed PMS hold is not reported - status reads "' + statusEl.textContent + '"');
+    }
+  }
+
+  // ...and a healthy station, or one that has not checked yet, says nothing.
+  for (const [label, reading] of [
+    ['healthy', { pmsHoldOk: true }],
+    ['not yet checked', {}],
+  ]) {
+    const { statusEl } = run({ failures: 0, reading });
+    await new Promise(r => setImmediate(r));
+    if (statusEl.textContent !== '') {
+      fail.push('health: ' + label + ' should leave the status line empty, got "' + statusEl.textContent + '"');
+    }
   }
 
   if (fail.length) { console.log('FAIL\n  ' + fail.join('\n  ')); process.exit(1); }
