@@ -221,6 +221,23 @@ The status line names the case, so read it before guessing:
   reappears, check that `/api/weather` still returns an offset:
   `2026-10-15T21:04:07+00:00`, not `2026-10-15T21:04:07`.
 
+### Where messages appear
+
+Two elements, and the difference matters:
+
+- **`#alert`** — faults a person has to act on. Orange, `1.1vw`, above the
+  grid. `#alert:empty` is not rendered, so a healthy dashboard looks exactly
+  as it did before this element existed.
+- **`#status`** — `display: none` in `style.css`, set deliberately to keep
+  "Loading..." and "Refreshing..." out of the header. Still written to, so
+  unhiding it brings the chatter back for debugging.
+
+Anything a viewer needs to see goes to `#alert`. Writing a fault only to
+`#status` means it is not reported: the PMS reset-line warning did exactly
+that — fired correctly on the sensor, stored by the hub, mapped by the app,
+and written to a hidden element. `test-startup-retry.js` now asserts on
+`#alert` so that cannot pass again.
+
 Times are 24-hour, formatted by hand in `clock24()` rather than through
 `toLocaleTimeString()` — Tizen's WebKit takes its own view of `Intl` options,
 and the television's region setting is not something this app should be at the

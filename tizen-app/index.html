@@ -21,6 +21,11 @@
 
     <div id="status" style="margin-bottom: 0.8vw; font-size: 0.95vw; opacity: 0.8;">Initializing...</div>
 
+    <!-- Faults that need a human. Empty almost always, and #alert:empty takes
+         no space at all, so the healthy layout is exactly as it was. Separate
+         from #status, which is display:none to keep the header uncluttered. -->
+    <div id="alert" role="alert"></div>
+
     <section id="dashboard-container">
       <!-- Dashboard will render here -->
     </section>

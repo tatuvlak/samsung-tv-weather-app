@@ -12,6 +12,11 @@
 
 const cfg = window.APP_CONFIG || {};
 const status = document.getElementById('status');
+// #status is display:none - hidden deliberately so the header does not carry
+// "Loading..." and "Refreshing..." - which meant everything written to it was
+// invisible, faults included. Anything a person actually needs to act on goes
+// to #alert instead, which renders only when it has something to say.
+const alertBox = document.getElementById('alert');
 
 // Kept for debugging from the TV's remote inspector.
 window.lastRawResponse = null;
@@ -39,6 +44,14 @@ function describeError(err) {
 // and has to surface here or nowhere. Returns '' when there is nothing to say,
 // so it can be assigned to the status line either way — which is also why this
 // goes in the status line rather than the grid: the layout does not move.
+// Put a fault where it will be seen, and keep the status line in step for
+// anyone who unhides it. An empty string clears the alert, and #alert:empty
+// collapses to nothing, so the healthy layout is untouched.
+function showAlert(text) {
+  if (alertBox) alertBox.textContent = text || '';
+  status.textContent = text || '';
+}
+
 function healthNotice(reading) {
   if (reading && reading.pmsHoldOk === false) {
     return 'Air sensor reset line not working - the fan has been running ' +
@@ -51,7 +64,7 @@ async function refreshDashboard() {
   try {
     status.textContent = 'Refreshing...';
     const reading = await fetchAndRenderDashboard();
-    status.textContent = healthNotice(reading);
+    showAlert(healthNotice(reading));
     return true;
   } catch (err) {
     console.error('[APP] refresh failed:', err);
@@ -70,9 +83,9 @@ async function refreshDashboard() {
 // only been an error panel.
 function showOffline(message) {
   const hadStored = renderOfflineDashboard();
-  status.textContent = hadStored
+  showAlert(hadStored
     ? message + ' - showing the last stored reading'
-    : message;
+    : message);
 }
 
 // The first fetch can land before the TV's network stack is up. With a single
@@ -84,7 +97,7 @@ async function startupRefresh(attempts, delayMs) {
     status.textContent = i === 1 ? 'Loading...' : 'Loading... (attempt ' + i + ' of ' + attempts + ')';
     try {
       const reading = await fetchAndRenderDashboard();
-      status.textContent = healthNotice(reading);
+      showAlert(healthNotice(reading));
       return true;
     } catch (err) {
       console.error('[APP] startup attempt ' + i + ' of ' + attempts + ' failed:', err);
