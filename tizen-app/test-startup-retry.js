@@ -14,7 +14,7 @@ const fs = require('fs'), vm = require('vm');
 function run({ failures, attempts = 4, reading = {} }) {
   const calls = { fetches: 0, intervals: 0, offlineRenders: 0 };
   const el = () => ({ textContent: '', innerHTML: '', style: {}, addEventListener() {}, focus() {}, classList: { add(){}, remove(){}, contains(){ return false; } } });
-  const statusEl = el(), containerEl = el();
+  const statusEl = el(), containerEl = el(), alertEl = el();
 
   const ctx = {
     console: { log(){}, warn(){}, error(){} },
@@ -23,7 +23,12 @@ function run({ failures, attempts = 4, reading = {} }) {
     setTimeout: fn => { fn(); return 0; },
     setInterval: () => { calls.intervals++; return 0; },
     document: {
-      getElementById: id => id === 'status' ? statusEl : (id === 'dashboard-container' ? containerEl : el()),
+      getElementById: id => {
+        if (id === 'status') return statusEl;
+        if (id === 'alert') return alertEl;
+        if (id === 'dashboard-container') return containerEl;
+        return el();
+      },
       addEventListener() {}, querySelectorAll: () => [], body: el(), activeElement: null,
     },
     APP_CONFIG: { hub: { baseUrl: 'http://hub:5000', readToken: 'x', refreshSeconds: 60 } },
@@ -42,7 +47,7 @@ function run({ failures, attempts = 4, reading = {} }) {
   ctx.window.addEventListener = () => {};
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync('app.js', 'utf8'), ctx);
-  return { ctx, calls, statusEl, containerEl };
+  return { ctx, calls, statusEl, containerEl, alertEl };
 }
 
 (async () => {
@@ -72,14 +77,14 @@ function run({ failures, attempts = 4, reading = {} }) {
   // panel. The whole point is that the forecast still gets rendered, and the
   // forecast only runs as part of a real dashboard render.
   {
-    const { calls, containerEl, statusEl } = run({ failures: 99 });
+    const { calls, containerEl, alertEl } = run({ failures: 99 });
     await new Promise(r => setImmediate(r));
     eq('unreachable: stops after 4', calls.fetches, 4);
     eq('unreachable: fell back to the stored reading', calls.offlineRenders, 1);
     if (containerEl.innerHTML.indexOf('dashboard') === -1) fail.push('unreachable: no dashboard rendered');
-    if (!statusEl.textContent) fail.push('unreachable: status line left empty');
-    if (statusEl.textContent.indexOf('last stored reading') === -1) {
-      fail.push('unreachable: status line does not say the numbers are stored ones');
+    if (!alertEl.textContent) fail.push('unreachable: nothing in the visible alert');
+    if (alertEl.textContent.indexOf('last stored reading') === -1) {
+      fail.push('unreachable: the alert does not say the numbers are stored ones');
     }
     // Still scheduled, so it recovers on its own once the hub comes back.
     eq('unreachable: keeps trying periodically', calls.intervals, 1);
@@ -100,11 +105,16 @@ function run({ failures, attempts = 4, reading = {} }) {
   // A fault the readings cannot show: the station says its PMS reset line did
   // not hold. Nothing reads that sensor's serial console, so the dashboard is
   // the only place it can surface.
+  //
+  // Asserted on #alert, not #status. #status is display:none in style.css, so
+  // a message that only reaches it is not reported at all - which is exactly
+  // what happened: the warning fired correctly on the sensor, travelled
+  // through the hub, arrived in the app, and was written to a hidden element.
   {
-    const { statusEl } = run({ failures: 0, reading: { pmsHoldOk: false } });
+    const { alertEl } = run({ failures: 0, reading: { pmsHoldOk: false } });
     await new Promise(r => setImmediate(r));
-    if (statusEl.textContent.indexOf('reset line') === -1) {
-      fail.push('health: a failed PMS hold is not reported - status reads "' + statusEl.textContent + '"');
+    if (alertEl.textContent.indexOf('reset line') === -1) {
+      fail.push('health: a failed PMS hold is not in the visible alert - it reads "' + alertEl.textContent + '"');
     }
   }
 
@@ -113,10 +123,13 @@ function run({ failures, attempts = 4, reading = {} }) {
     ['healthy', { pmsHoldOk: true }],
     ['not yet checked', {}],
   ]) {
-    const { statusEl } = run({ failures: 0, reading });
+    const { alertEl } = run({ failures: 0, reading });
     await new Promise(r => setImmediate(r));
-    if (statusEl.textContent !== '') {
-      fail.push('health: ' + label + ' should leave the status line empty, got "' + statusEl.textContent + '"');
+    // Empty matters structurally, not just cosmetically: #alert:empty is not
+    // rendered, so an empty string is what keeps a healthy dashboard's layout
+    // identical to before this element existed.
+    if (alertEl.textContent !== '') {
+      fail.push('health: ' + label + ' should leave the alert empty, got "' + alertEl.textContent + '"');
     }
   }
 

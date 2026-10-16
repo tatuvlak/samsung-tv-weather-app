@@ -137,3 +137,29 @@ footer { margin-top: 1.2vw; opacity: 0.8; font-size: 1.0vw; }
 .dashboard-panel.stale-data {
   opacity: 0.55;
 }
+
+/* A fault that needs a human: a loose sensor wire, an unreachable hub.
+ *
+ * This element exists because #status is display:none — set deliberately above
+ * to keep the header free of "Loading..." and "Refreshing..." — which meant
+ * every message routed to the status line was invisible. The PMS reset-line
+ * warning was, and so were describeError's messages naming a wrong address or
+ * a connect-src that blocks the hub. Those had been silent since the status
+ * line was hidden.
+ *
+ * :empty is what makes this safe for the layout. With nothing to say the
+ * element is not rendered at all, so a healthy dashboard is pixel-identical to
+ * before. When it does have something it pushes the grid down, which is the
+ * correct trade: it only happens when something is actually wrong, and it is
+ * meant to be readable from across the room rather than tucked above the
+ * panels in grey. */
+#alert {
+  margin: 0 0 0.8vw 0;
+  padding: 0.6vw 1vw;
+  border-left: 0.4vw solid #ff9800;
+  background: #ff980022;
+  color: #ff9800;
+  font-size: 1.1vw;
+  line-height: 1.35;
+}
+#alert:empty { display: none; }
